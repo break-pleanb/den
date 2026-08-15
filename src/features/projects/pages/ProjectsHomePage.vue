@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useDebounceFn } from '@vueuse/core'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { FolderPlus, Folder as FolderIcon, LayoutGrid, List, Plus, Search, Star } from '@lucide/vue'
 import {
@@ -37,20 +38,34 @@ const { data: allTasks } = useQuery({ queryKey: ['all-tasks'], queryFn: fetchAll
 const { data: users } = useQuery({ queryKey: ['users'], queryFn: fetchUsers })
 
 // ── URL 상태 (뒤로가기로 복원되어야 함) ──────────────────────
-const searchTerm = computed({
-  get: () => (route.query.q as string) ?? '',
-  set: (value) => router.replace({ query: { ...route.query, q: value || undefined } }),
-})
+// 입력창은 로컬 ref로 즉시 반응하고, URL 반영은 디바운스 후 router.push로 커밋한다.
+// 매 타이핑마다 push하면 뒤로가기 히스토리가 글자 수만큼 쌓이므로, 입력이 잠시 멈췄을 때만
+// 하나의 히스토리 항목으로 기록해 뒤로가기 시 검색 이전 상태로 복원되게 한다 (URL 우선 원칙).
+const searchTerm = ref((route.query.q as string) ?? '')
+
+watch(
+  () => route.query.q,
+  (q) => {
+    const value = (q as string) ?? ''
+    if (value !== searchTerm.value) searchTerm.value = value
+  },
+)
+
+const commitSearch = useDebounceFn((value: string) => {
+  router.push({ query: { ...route.query, q: value || undefined } })
+}, 400)
 
 // v-model은 한글 IME 조합 중 input을 무시해 조합이 끝나기 전까지 검색에 반영되지 않는다.
 // input 이벤트에서 target.value를 직접 읽어 조합 중에도 즉시 반영되게 한다.
 function onSearchInput(event: Event) {
-  searchTerm.value = (event.target as HTMLInputElement).value
+  const value = (event.target as HTMLInputElement).value
+  searchTerm.value = value
+  commitSearch(value)
 }
 
 const viewMode = computed<'card' | 'list'>(() => (route.query.view === 'list' ? 'list' : 'card'))
 function setViewMode(mode: 'card' | 'list') {
-  router.replace({ query: { ...route.query, view: mode === 'card' ? undefined : mode } })
+  router.push({ query: { ...route.query, view: mode === 'card' ? undefined : mode } })
 }
 
 // ── 파생 데이터 ────────────────────────────────────────────
