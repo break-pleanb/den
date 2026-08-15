@@ -1,5 +1,11 @@
 # den — 프로젝트 관리 + 메신저 사내 솔루션
 
+## 실행 제약 (중요)
+- npm/npx 설치 명령을 직접 실행하지 말 것. 필요하면 사용자에게 명령어만 알려줄 것.
+- 대화형 CLI(create-vite, shadcn-vue init/add 등)는 사용자가 직접 실행한다.
+- 임시 폴더(/tmp, AppData/Temp) 사용 금지. 프로젝트 폴더 안에서만 작업.
+- 기존 문서(CLAUDE.md, docs/, design-reference/)는 절대 삭제·수정하지 말 것.
+
 ## 브랜드 표기 (중요)
 제품명은 **항상 소문자 `den`**. 문장 첫머리에서도 대문자화하지 않는다.
 UI 로고, 사이드바, 타이틀, 패키지명 모두 소문자로 표기할 것.
@@ -25,7 +31,7 @@ UI 로고, 사이드바, 타이틀, 패키지명 모두 소문자로 표기할 �
 - **Vue Router** — 라우팅
 - **Pinia** — 전역 상태
 - **@tanstack/vue-query** — 서버 상태·캐싱 (목업 단계에서도 사용, 나중에 API로 교체)
-- **shadcn-vue + Tailwind CSS v4** — UI
+- **shadcn-vue + Tailwind CSS v4** — UI (Reka UI 기반, Lucide 아이콘, Inter 폰트)
 - **frappe-gantt** (MIT) — 간트차트
 - **@stomp/stompjs** — 메신저 (나중에)
 - **axios** — HTTP (나중에)
@@ -62,10 +68,10 @@ const page = ref(1)
 | 화면 일시 상태 (드롭다운 열림 등) | `ref` / `reactive` |
 
 ### 3. 디자인 토큰만 사용 (하드코딩 금지)
-- 색상·모서리·간격은 **반드시 `src/index.css`의 CSS 변수**를 통해 사용
+- 색상·모서리·간격은 **반드시 `src/style.css`의 CSS 변수**를 통해 사용
 - **금지**: `color: #4f46e5` 같은 하드코딩, 임의의 Tailwind 색상 클래스(`bg-blue-500` 등)
 - **사용**: `bg-primary`, `text-muted-foreground`, `border-border`, `rounded-lg` 등 토큰 기반 클래스
-- 업무 상태색/우선순위색은 `src/shared/lib/constants.ts` 의 매핑을 통해서만 사용
+- 업무 상태색/우선순위색은 `src/lib/constants.ts` 의 매핑을 통해서만 사용
 
 ### 4. 디자인 레퍼런스
 `design-reference/` 폴더에 확정된 디자인의 HTML 샘플이 있다.
@@ -78,10 +84,9 @@ const page = ref(1)
 src/
 ├── router/           라우팅 정의
 ├── layouts/          AppLayout, Sidebar, ContextBar
-├── components/ui/    shadcn-vue 컴포넌트
-├── shared/
-│   ├── lib/          utils, constants (상태·우선순위 매핑)
-│   └── store/        Pinia 스토어
+├── components/ui/    shadcn-vue 컴포넌트 (CLI가 생성, 위치 변경 금지)
+├── lib/              utils.ts (shadcn 생성), constants.ts (상태·우선순위 매핑)
+├── stores/           Pinia 스토어
 ├── mock/             목업 데이터 + 목업 API 함수
 └── features/
     ├── projects/     전체 프로젝트 홈
@@ -90,6 +95,7 @@ src/
     ├── permissions/  멤버·역할 설정
     └── notifications/
 ```
+> `@/lib/utils` 는 shadcn-vue 컴포넌트가 참조하는 경로다. 옮기지 말 것.
 
 ---
 
@@ -114,6 +120,9 @@ src/
 - 완료 `#e7f6ee` / `#1a9457`
 
 **우선순위**: 긴급 `#e5484d` / 높음 `#f2820c` / 보통 `#4f46e5` / 낮음 `#9ca3af`
+
+**폰트**: `'Inter', 'Pretendard', 'Noto Sans KR', sans-serif`
+(Inter는 한글 글리프가 없으므로 한글 폰트를 뒤에 둘 것)
 
 원칙: **UI 강조는 인디고 하나, 색은 데이터/상태에만.** 나머지는 무채색.
 다크 모드는 지금 만들지 않는다 (라이트 전용).
@@ -158,7 +167,7 @@ src/
 
 ## 작업 순서 (이 순서대로 진행)
 
-1. **공통 토대** — 스캐폴드, 레이아웃(사이드바+컨텍스트바), 라우팅, 목업 데이터 셋업
+1. **공통 토대** — 레이아웃(사이드바+컨텍스트바), 라우팅, 디자인 토큰, 목업 데이터 셋업
 2. **전체 프로젝트 홈** — 카드 그리드, 즐겨찾기/폴더 섹션, 검색
 3. **업무 리스트 뷰** — 리스트, 상태/우선순위 배지, 필터 칩, 그룹핑, 페이지네이션
 4. **업무 상세 패널** — 담당자(다대다), 상태·우선순위·기간·진행률 편집, 댓글·멘션, 의존성, 하위업무
@@ -206,6 +215,7 @@ src/
 - ❌ 다크 모드 구현 (라이트 전용)
 - ❌ 칸반 보드 (지금 범위 밖)
 - ❌ 한 번에 여러 단계 진행 (한 단계씩, 확인받고 진행)
+- ❌ `src/lib/utils.ts` 위치 이동 (shadcn-vue가 참조하는 고정 경로)
 
 ---
 

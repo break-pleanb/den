@@ -1,0 +1,133 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  /* 모서리 반경 */
+  --radius: 0.875rem; /* 14px */
+
+  /* 배경/카드/텍스트 */
+  --background: #f7f8fa;
+  --foreground: #1e2230;
+
+  --card: #ffffff;
+  --card-foreground: #1e2230;
+
+  --popover: #ffffff;
+  --popover-foreground: #1e2230;
+
+  /* 액센트 — 인디고 (버튼·활성·링크·선택·포커스 전용) */
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --primary-hover: #4338ca;
+  --primary-soft: #eef2ff;
+
+  --secondary: #f1f2f5;
+  --secondary-foreground: #1e2230;
+
+  --muted: #f1f2f5;
+  --muted-foreground: #6b7280;
+  --subtle: #9ca3af;
+
+  --accent: #eef2ff;
+  --accent-foreground: #4f46e5;
+
+  --destructive: #e5484d;
+  --destructive-foreground: #ffffff;
+
+  --border: #eceef2;
+  --border-strong: #e2e5ea;
+  --input: #eceef2;
+  --ring: #4f46e5;
+
+  /* 업무 상태색 (데이터 전용 — src/lib/constants.ts 매핑을 통해서만 사용) */
+  --status-todo-bg: #f1f2f5;
+  --status-todo-fg: #565d6d;
+  --status-progress-bg: #eef2ff;
+  --status-progress-fg: #4f46e5;
+  --status-review-bg: #fff4e5;
+  --status-review-fg: #b76a09;
+  --status-done-bg: #e7f6ee;
+  --status-done-fg: #1a9457;
+
+  /* 우선순위색 (데이터 전용 — src/lib/constants.ts 매핑을 통해서만 사용) */
+  --priority-urgent: #e5484d;
+  --priority-high: #f2820c;
+  --priority-medium: #4f46e5;
+  --priority-low: #9ca3af;
+
+  font-family: 'Inter', 'Pretendard', 'Noto Sans KR', sans-serif;
+  color-scheme: light;
+  color: var(--foreground);
+  background: var(--background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+}
+
+@theme inline {
+  --font-sans: 'Inter', 'Pretendard', 'Noto Sans KR', sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* 업무 상태색 → bg-status-*-bg / text-status-*-fg */
+  --color-status-todo-bg: var(--status-todo-bg);
+  --color-status-todo-fg: var(--status-todo-fg);
+  --color-status-progress-bg: var(--status-progress-bg);
+  --color-status-progress-fg: var(--status-progress-fg);
+  --color-status-review-bg: var(--status-review-bg);
+  --color-status-review-fg: var(--status-review-fg);
+  --color-status-done-bg: var(--status-done-bg);
+  --color-status-done-fg: var(--status-done-fg);
+
+  /* 우선순위색 → bg-priority-* / text-priority-* */
+  --color-priority-urgent: var(--priority-urgent);
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
+
+  /* 카드 그림자 → shadow-card */
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.03);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
