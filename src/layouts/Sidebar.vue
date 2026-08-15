@@ -16,15 +16,25 @@ import {
   fetchFolders,
   fetchMyTaskCount,
   fetchProjects,
+  moveProjectToFolder,
   toggleFavoriteProject,
 } from '@/mock/api'
+import type { Project } from '@/mock/types'
 import { useAuthStore } from '@/stores/auth'
+import { confirm } from '@/lib/confirm'
+import ProjectActionsMenu from '@/components/ProjectActionsMenu.vue'
 
 const route = useRoute()
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
 
 const searchTerm = ref('')
+
+// v-model은 한글 IME 조합 중 input을 무시해 조합이 끝나기 전까지 검색에 반영되지 않는다.
+// input 이벤트에서 target.value를 직접 읽어 조합 중에도 즉시 반영되게 한다.
+function onSearchInput(event: Event) {
+  searchTerm.value = (event.target as HTMLInputElement).value
+}
 
 const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: fetchProjects })
 const { data: folders } = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
@@ -53,6 +63,7 @@ function projectsInFolder(folderId: string) {
 }
 
 const activeProjectKey = computed(() => route.params.projectKey as string | undefined)
+const isProjectsHomeActive = computed(() => route.name === 'projects-home')
 
 const favoritesCollapsed = ref(false)
 const foldersCollapsed = ref(false)
@@ -68,11 +79,32 @@ function toggleFolder(folderId: string, defaultCollapsed?: boolean) {
   folderCollapsedMap[folderId] = !isFolderCollapsed(folderId, defaultCollapsed)
 }
 
-async function onToggleFavorite(event: MouseEvent, projectId: string) {
+function isFavorite(projectId: string) {
+  return (favoriteIds.value ?? []).includes(projectId)
+}
+
+async function onToggleFavorite(event: MouseEvent, project: Project) {
   event.stopPropagation()
   event.preventDefault()
+  const ok = await confirm({
+    description: `'${project.name}'을(를) 즐겨찾기에서 해제할까요?`,
+    confirmLabel: '해제',
+    destructive: true,
+  })
+  if (!ok) return
+  await toggleFavoriteProject(project.id)
+  await queryClient.invalidateQueries({ queryKey: ['favorites'] })
+}
+
+// ProjectActionsMenu는 해제 시 확인을 이미 자체적으로 처리하므로 여기서는 바로 토글한다
+async function onMenuToggleFavorite(projectId: string) {
   await toggleFavoriteProject(projectId)
   await queryClient.invalidateQueries({ queryKey: ['favorites'] })
+}
+
+async function onMoveToFolder(projectId: string, folderId: string | null) {
+  await moveProjectToFolder(projectId, folderId)
+  await queryClient.invalidateQueries({ queryKey: ['projects'] })
 }
 </script>
 
@@ -95,9 +127,10 @@ async function onToggleFavorite(event: MouseEvent, projectId: string) {
     >
       <Search class="size-3.5 shrink-0" :stroke-width="2" />
       <input
-        v-model="searchTerm"
+        :value="searchTerm"
         placeholder="프로젝트 검색..."
         class="w-full border-none bg-transparent text-[13px] text-foreground outline-none placeholder:text-subtle"
+        @input="onSearchInput"
       />
     </div>
 
@@ -112,7 +145,8 @@ async function onToggleFavorite(event: MouseEvent, projectId: string) {
           <LayoutGrid class="size-[17px] shrink-0" :stroke-width="1.9" />
           전체 프로젝트
           <span
-            class="ml-auto rounded-full bg-[#eef0f3] px-[7px] py-px text-[11px] font-semibold text-muted-foreground"
+            class="ml-auto rounded-full px-[7px] py-px text-[11px] font-semibold"
+            :class="isProjectsHomeActive ? 'bg-card text-primary' : 'bg-[#eef0f3] text-muted-foreground'"
           >
             {{ projects?.length ?? 0 }}
           </span>
@@ -159,14 +193,21 @@ async function onToggleFavorite(event: MouseEvent, projectId: string) {
           v-for="project in favoriteProjects"
           :key="project.id"
           :to="{ name: 'tasks', params: { projectKey: project.key } }"
-          class="mb-px flex items-center gap-2.5 rounded-[9px] px-2.5 py-[7px] text-[13.5px] font-medium text-muted-foreground hover:bg-[#f4f5f7] hover:text-foreground"
+          class="group mb-px flex items-center gap-2.5 rounded-[9px] px-2.5 py-[7px] text-[13.5px] font-medium text-muted-foreground hover:bg-[#f4f5f7] hover:text-foreground"
           :class="{ '!bg-primary-soft !text-primary font-semibold': activeProjectKey === project.key }"
         >
           <span class="size-2 shrink-0 rounded-full" :style="{ background: project.color }" />
-          {{ project.name }}
-          <button type="button" class="ml-auto shrink-0" @click="onToggleFavorite($event, project.id)">
+          <span class="truncate">{{ project.name }}</span>
+          <button type="button" class="ml-auto shrink-0" @click="onToggleFavorite($event, project)">
             <Star class="size-3.5 fill-[#f5b800] text-[#f5b800]" :stroke-width="2" />
           </button>
+          <ProjectActionsMenu
+            :project="project"
+            :folders="folders ?? []"
+            :is-favorite="true"
+            @toggle-favorite="onMenuToggleFavorite"
+            @move-to-folder="onMoveToFolder"
+          />
         </router-link>
       </template>
 
@@ -218,11 +259,19 @@ async function onToggleFavorite(event: MouseEvent, projectId: string) {
               v-for="project in projectsInFolder(folder.id)"
               :key="project.id"
               :to="{ name: 'tasks', params: { projectKey: project.key } }"
-              class="mb-px flex items-center gap-2.5 rounded-[9px] px-2.5 py-[7px] text-[13.5px] font-medium text-muted-foreground hover:bg-[#f4f5f7] hover:text-foreground"
+              class="group mb-px flex items-center gap-2.5 rounded-[9px] px-2.5 py-[7px] text-[13.5px] font-medium text-muted-foreground hover:bg-[#f4f5f7] hover:text-foreground"
               :class="{ '!bg-primary-soft !text-primary font-semibold': activeProjectKey === project.key }"
             >
               <span class="size-2 shrink-0 rounded-full" :style="{ background: project.color }" />
-              {{ project.name }}
+              <span class="truncate">{{ project.name }}</span>
+              <ProjectActionsMenu
+                :project="project"
+                :folders="folders ?? []"
+                :is-favorite="isFavorite(project.id)"
+                trigger-class="ml-auto"
+                @toggle-favorite="onMenuToggleFavorite"
+                @move-to-folder="onMoveToFolder"
+              />
             </router-link>
           </div>
         </div>
@@ -252,11 +301,19 @@ async function onToggleFavorite(event: MouseEvent, projectId: string) {
             v-for="project in unclassifiedProjects"
             :key="project.id"
             :to="{ name: 'tasks', params: { projectKey: project.key } }"
-            class="mb-px flex items-center gap-2.5 rounded-[9px] px-2.5 py-[7px] text-[13.5px] font-medium text-muted-foreground hover:bg-[#f4f5f7] hover:text-foreground"
+            class="group mb-px flex items-center gap-2.5 rounded-[9px] px-2.5 py-[7px] text-[13.5px] font-medium text-muted-foreground hover:bg-[#f4f5f7] hover:text-foreground"
             :class="{ '!bg-primary-soft !text-primary font-semibold': activeProjectKey === project.key }"
           >
             <span class="size-2 shrink-0 rounded-full" :style="{ background: project.color }" />
-            {{ project.name }}
+            <span class="truncate">{{ project.name }}</span>
+            <ProjectActionsMenu
+              :project="project"
+              :folders="folders ?? []"
+              :is-favorite="isFavorite(project.id)"
+              trigger-class="ml-auto"
+              @toggle-favorite="onMenuToggleFavorite"
+              @move-to-folder="onMoveToFolder"
+            />
           </router-link>
         </template>
       </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { Bell, ChartGantt, ListChecks, MessageSquare, Search, Settings } from '@lucide/vue'
 import {
@@ -11,8 +11,19 @@ import {
 import { useNotificationStore } from '@/stores/notifications'
 
 const route = useRoute()
+const router = useRouter()
 const notificationStore = useNotificationStore()
-const taskSearchTerm = ref('')
+
+const taskSearchTerm = computed({
+  get: () => (route.query.q as string) ?? '',
+  set: (value) => router.replace({ query: { ...route.query, q: value || undefined } }),
+})
+
+// v-model은 한글 IME 조합 중 input을 무시해 조합이 끝나기 전까지 검색에 반영되지 않는다.
+// input 이벤트에서 target.value를 직접 읽어 조합 중에도 즉시 반영되게 한다.
+function onTaskSearchInput(event: Event) {
+  taskSearchTerm.value = (event.target as HTMLInputElement).value
+}
 
 const projectKey = computed(() => route.params.projectKey as string)
 
@@ -97,9 +108,10 @@ const isSettingsTab = computed(() => route.name === 'settings-members' || route.
       <div class="flex w-[220px] items-center gap-2 rounded-[9px] border border-border-strong bg-background px-2.5 py-[7px] text-subtle">
         <Search class="size-3.5 shrink-0" :stroke-width="2" />
         <input
-          v-model="taskSearchTerm"
+          :value="taskSearchTerm"
           placeholder="업무 검색..."
           class="w-full border-none bg-transparent text-[13px] text-foreground outline-none placeholder:text-subtle"
+          @input="onTaskSearchInput"
         />
       </div>
       <router-link

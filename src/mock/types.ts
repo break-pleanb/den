@@ -17,7 +17,8 @@ export interface Project {
   id: string
   key: string // 사람이 읽는 키 ("APP"). URL에 노출됨
   name: string
-  color: string // 사이드바 프로젝트 점 색상
+  description: string
+  color: string // 사이드바 프로젝트 점 색상 / 카드 마크 배경
   folderId: string | null // null이면 미분류
   memberIds: string[]
 }
@@ -25,7 +26,6 @@ export interface Project {
 export interface Folder {
   id: string
   name: string
-  projectIds: string[]
   collapsed?: boolean
 }
 

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { fetchProjectByKey, fetchTasksByProjectKey } from '@/mock/api'
 import { STATUS_LABEL, STATUS_ORDER } from '@/lib/constants'
 
 const props = defineProps<{ projectKey: string }>()
 const projectKey = computed(() => props.projectKey)
+const route = useRoute()
 
 const { data: project } = useQuery({
   queryKey: ['project', projectKey],
@@ -21,6 +23,15 @@ const countByStatus = computed(() => {
   const counts = { todo: 0, progress: 0, review: 0, done: 0 }
   for (const task of tasks.value ?? []) counts[task.status]++
   return counts
+})
+
+const searchTerm = computed(() => ((route.query.q as string) ?? '').trim().toLowerCase())
+
+const filteredTasks = computed(() => {
+  const all = tasks.value ?? []
+  const term = searchTerm.value
+  if (!term) return all
+  return all.filter((t) => t.title.toLowerCase().includes(term) || t.code.toLowerCase().includes(term))
 })
 </script>
 
@@ -44,11 +55,14 @@ const countByStatus = computed(() => {
       </div>
     </div>
 
-    <div class="mt-4 rounded-lg border border-border bg-card shadow-card">
+    <div v-if="!filteredTasks.length" class="mt-4 rounded-lg border border-border bg-card py-16 text-center text-sm text-muted-foreground">
+      "{{ searchTerm }}"에 해당하는 업무가 없습니다.
+    </div>
+    <div v-else class="mt-4 rounded-lg border border-border bg-card shadow-card">
       <router-link
-        v-for="task in tasks"
+        v-for="task in filteredTasks"
         :key="task.id"
-        :to="{ name: 'task-detail', params: { projectKey, taskId: task.id } }"
+        :to="{ name: 'task-detail', params: { projectKey, taskId: task.id }, query: route.query }"
         class="flex items-center gap-3 border-b border-border px-4 py-3 last:border-none hover:bg-[#fafbfc]"
       >
         <span class="font-mono text-xs font-semibold text-muted-foreground">{{ task.code }}</span>
