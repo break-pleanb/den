@@ -5,6 +5,9 @@
 - 대화형 CLI(create-vite, shadcn-vue init/add 등)는 사용자가 직접 실행한다.
 - 임시 폴더(/tmp, AppData/Temp) 사용 금지. 프로젝트 폴더 안에서만 작업.
 - 기존 문서(CLAUDE.md, docs/, design-reference/)는 절대 삭제·수정하지 말 것.
+- **브라우저 자동화(claude-in-chrome, CDP, playwright 등)를 사용하지 말 것.**
+  화면 확인은 사용자가 직접 한다. 작업 완료 후 dev 서버 주소만 알려줄 것.
+  타입체크(`vue-tsc -b`)와 빌드 통과 여부까지만 확인하면 된다.
 
 ## 브랜드 표기 (중요)
 제품명은 **항상 소문자 `den`**. 문장 첫머리에서도 대문자화하지 않는다.
