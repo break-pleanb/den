@@ -12,7 +12,7 @@ import { mockFavoriteProjectIds, mockFolders, mockProjects, getProjectByKey } fr
 import { getSubtaskCount, getTaskById, getTasksByProject, mockTasks } from './tasks'
 import { getTagsByProject } from './tags'
 import { CURRENT_USER_ID, getUserById, mockUsers } from './users'
-import type { AppNotification, Channel, Comment, Folder, MenuKey, Project, Role, Tag, Task, User } from './types'
+import type { AppNotification, Channel, Comment, Folder, MenuKey, Project, ProjectMember, Role, Tag, Task, User } from './types'
 
 // ── 프로젝트 / 폴더 / 즐겨찾기 ──────────────────────────────
 
@@ -56,7 +56,7 @@ export async function createProject(name: string, folderId: string | null = null
 
   const roleId = `r-${id}-admin`
   mockRoles.push({ id: roleId, projectId: id, name: '관리자', isAdmin: true, menuPermissions: { tasks: true, gantt: true, messenger: true } })
-  mockProjectMembers.push({ userId: CURRENT_USER_ID, projectId: id, roleId })
+  mockProjectMembers.push({ userId: CURRENT_USER_ID, projectId: id, roleId, invitedAt: new Date().toISOString().slice(0, 10) })
 
   return structuredClone(project)
 }
@@ -105,6 +105,84 @@ export async function fetchMenuPermissions(projectKey: string): Promise<Record<M
   if (!project) return fallback
   const role = getMemberRole(project.id, CURRENT_USER_ID)
   return role ? { ...role.menuPermissions } : fallback
+}
+
+export async function fetchProjectMembers(projectKey: string): Promise<ProjectMember[]> {
+  const project = getProjectByKey(projectKey)
+  if (!project) return []
+  return structuredClone(mockProjectMembers.filter((m) => m.projectId === project.id))
+}
+
+// 초대받는 사람 이름으로부터 아바타 이니셜을 만든다. 성/이름처럼 공백으로 나뉘면 각 첫 글자,
+// 아니면(한글 이름 등) 앞 두 글자를 사용한다.
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return name.trim().slice(0, 2).toUpperCase()
+}
+
+const AVATAR_GRADIENT_PALETTE = [
+  'linear-gradient(135deg,#3b82f6,#6366f1)',
+  'linear-gradient(135deg,#f59e0b,#ef4444)',
+  'linear-gradient(135deg,#10b981,#059669)',
+  'linear-gradient(135deg,#ec4899,#db2777)',
+  'linear-gradient(135deg,#14b8a6,#0ea5e9)',
+  'linear-gradient(135deg,#a855f7,#7c3aed)',
+]
+
+export async function inviteProjectMember(
+  projectKey: string,
+  name: string,
+  email: string,
+  roleId: string,
+): Promise<User> {
+  const project = getProjectByKey(projectKey)
+  if (!project) throw new Error('프로젝트를 찾을 수 없습니다')
+
+  const user: User = {
+    id: `u-${crypto.randomUUID()}`,
+    name,
+    email,
+    initials: initialsOf(name),
+    avatarGradient: AVATAR_GRADIENT_PALETTE[mockUsers.length % AVATAR_GRADIENT_PALETTE.length],
+  }
+  mockUsers.push(user)
+  project.memberIds.push(user.id)
+  mockProjectMembers.push({
+    userId: user.id,
+    projectId: project.id,
+    roleId,
+    invitedAt: new Date().toISOString().slice(0, 10),
+  })
+  return structuredClone(user)
+}
+
+export async function updateProjectMemberRole(
+  projectKey: string,
+  userId: string,
+  roleId: string,
+): Promise<void> {
+  const project = getProjectByKey(projectKey)
+  if (!project) return
+  const member = mockProjectMembers.find((m) => m.projectId === project.id && m.userId === userId)
+  if (member) member.roleId = roleId
+}
+
+export async function removeProjectMember(projectKey: string, userId: string): Promise<void> {
+  const project = getProjectByKey(projectKey)
+  if (!project) return
+  const idx = mockProjectMembers.findIndex((m) => m.projectId === project.id && m.userId === userId)
+  if (idx !== -1) mockProjectMembers.splice(idx, 1)
+  project.memberIds = project.memberIds.filter((id) => id !== userId)
+}
+
+export async function updateRoleMenuPermission(
+  roleId: string,
+  menuKey: MenuKey,
+  value: boolean,
+): Promise<void> {
+  const role = mockRoles.find((r) => r.id === roleId)
+  if (role) role.menuPermissions[menuKey] = value
 }
 
 // ── 업무 ──────────────────────────────────────────────────

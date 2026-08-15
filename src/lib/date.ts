@@ -15,6 +15,15 @@ export function formatDueLabel(endDate: string, isDone: boolean): { label: strin
   return { label, urgent }
 }
 
+// 멤버 초대일 표시용 포맷 — "YYYY.MM.DD"
+export function formatInviteDate(iso: string): string {
+  const date = new Date(`${iso}T00:00:00`)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}.${m}.${d}`
+}
+
 // 댓글 등록 시각 표시용 포맷 — 오늘이면 시:분만, 그 외엔 "M월 D일 시:분"
 export function formatCommentTime(iso: string): string {
   const date = new Date(iso)

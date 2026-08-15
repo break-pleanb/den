@@ -41,6 +41,7 @@ export interface ProjectMember {
   userId: string
   projectId: string
   roleId: string
+  invitedAt: string // ISO date
 }
 
 export interface Tag {
