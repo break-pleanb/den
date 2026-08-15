@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>프로젝트 관리 — 업무 목록 (멀티 프로젝트 사이드바)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --background:#f7f8fa; --card:#fff; --foreground:#1e2230;
+    --muted-foreground:#6b7280; --subtle:#9ca3af;
+    --border:#eceef2; --border-strong:#e2e5ea;
+    --primary:#4f46e5; --primary-hover:#4338ca; --primary-soft:#eef2ff;
+    --radius:14px; --radius-sm:9px; --radius-pill:999px;
+    --st-todo-bg:#f1f2f5;--st-todo-tx:#565d6d;
+    --st-progress-bg:#eef2ff;--st-progress-tx:#4f46e5;
+    --st-review-bg:#fff4e5;--st-review-tx:#b76a09;
+    --st-done-bg:#e7f6ee;--st-done-tx:#1a9457;
+    --pr-urgent:#e5484d;--pr-high:#f2820c;--pr-med:#4f46e5;--pr-low:#9ca3af;
+    --shadow-card:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.03);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:'Inter','Noto Sans KR',-apple-system,sans-serif;background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+  .app{display:flex;height:100vh;overflow:hidden}
+
+  /* ===== 사이드바 ===== */
+  .sidebar{width:264px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column}
+  .brand{display:flex;align-items:center;gap:10px;padding:16px 16px 12px}
+  .brand-mark{width:30px;height:30px;border-radius:8px;background:var(--primary);display:grid;place-items:center;color:#fff;font-weight:700;font-size:15px;box-shadow:0 2px 6px rgba(79,70,229,.35)}
+  .brand-name{font-weight:700;font-size:15px;letter-spacing:-.01em}
+  .brand-name small{display:block;font-weight:500;font-size:11px;color:var(--subtle)}
+
+  /* 프로젝트 검색 */
+  .side-search{margin:4px 12px 10px;display:flex;align-items:center;gap:8px;background:var(--background);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:7px 10px;color:var(--subtle)}
+  .side-search svg{width:14px;height:14px;stroke-width:2}
+  .side-search input{border:none;background:transparent;outline:none;font-family:inherit;font-size:13px;color:var(--foreground);width:100%}
+
+  .side-scroll{flex:1;overflow-y:auto;padding:0 8px 8px}
+
+  /* 상단 고정 메뉴 (전체 프로젝트/홈) */
+  .top-nav{padding:0 4px 6px;border-bottom:1px solid var(--border);margin-bottom:6px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-sm);color:var(--muted-foreground);font-weight:500;cursor:pointer;margin-bottom:2px;transition:background .12s,color .12s}
+  .nav-item svg{width:17px;height:17px;stroke-width:1.9;flex-shrink:0}
+  .nav-item:hover{background:#f4f5f7;color:var(--foreground)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .nav-item .count{margin-left:auto;font-size:11px;font-weight:600;background:#eef0f3;color:var(--muted-foreground);padding:1px 7px;border-radius:var(--radius-pill)}
+  .nav-item.active .count{background:#fff;color:var(--primary)}
+
+  /* 섹션 라벨 */
+  .side-section{display:flex;align-items:center;gap:6px;padding:12px 10px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--subtle);cursor:pointer;user-select:none}
+  .side-section .sec-caret{width:12px;height:12px;stroke-width:2.4;transition:transform .15s}
+  .side-section.collapsed .sec-caret{transform:rotate(-90deg)}
+  .side-section .sec-add{margin-left:auto;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;color:var(--subtle)}
+  .side-section .sec-add:hover{background:#f4f5f7;color:var(--foreground)}
+  .side-section .sec-add svg{width:13px;height:13px;stroke-width:2.2}
+
+  /* 프로젝트 항목 (즐겨찾기/폴더 내부 공통) */
+  .proj-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:var(--radius-sm);color:var(--muted-foreground);font-weight:500;font-size:13.5px;cursor:pointer;margin-bottom:1px}
+  .proj-item:hover{background:#f4f5f7;color:var(--foreground)}
+  .proj-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .proj-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .proj-item .star{margin-left:auto;width:14px;height:14px;stroke-width:2;color:#f5b800;fill:#f5b800;flex-shrink:0}
+  .proj-item .p-unread{margin-left:auto;font-size:10.5px;font-weight:700;background:var(--primary);color:#fff;min-width:17px;height:17px;padding:0 5px;border-radius:var(--radius-pill);display:grid;place-items:center}
+
+  /* 폴더 */
+  .folder{margin-bottom:1px}
+  .folder-head{display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:var(--radius-sm);color:var(--foreground);font-weight:600;font-size:13px;cursor:pointer;user-select:none}
+  .folder-head:hover{background:#f4f5f7}
+  .folder-head .f-caret{width:13px;height:13px;stroke-width:2.4;color:var(--subtle);transition:transform .15s}
+  .folder.collapsed .f-caret{transform:rotate(-90deg)}
+  .folder-head svg.f-icon{width:15px;height:15px;stroke-width:2;color:var(--muted-foreground)}
+  .folder-head .f-count{margin-left:auto;font-size:11px;font-weight:600;color:var(--subtle)}
+  .folder-body{padding-left:14px}
+  .folder.collapsed .folder-body{display:none}
+
+  .side-foot{border-top:1px solid var(--border);padding:8px}
+  .user-chip{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--radius-sm);cursor:pointer}
+  .user-chip:hover{background:#f4f5f7}
+  .avatar{width:30px;height:30px;border-radius:var(--radius-pill);background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;display:grid;place-items:center;font-weight:600;font-size:12px;flex-shrink:0}
+  .user-chip .u-name{font-weight:600;font-size:13px}
+  .user-chip .u-role{font-size:11px;color:var(--subtle)}
+
+  /* ===== 컨텍스트 바 (선택된 프로젝트 안의 메뉴) ===== */
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .ctxbar{height:52px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--card);display:flex;align-items:center;padding:0 20px;gap:4px}
+  .ctx-proj{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;margin-right:14px}
+  .ctx-proj .proj-dot{width:9px;height:9px}
+  .ctx-tab{padding:7px 13px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;color:var(--muted-foreground);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .ctx-tab svg{width:15px;height:15px;stroke-width:2}
+  .ctx-tab:hover{background:var(--background);color:var(--foreground)}
+  .ctx-tab.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .ctx-tab .t-badge{font-size:10.5px;font-weight:700;background:var(--primary);color:#fff;min-width:16px;height:16px;padding:0 4px;border-radius:var(--radius-pill);display:grid;place-items:center}
+  .ctxbar-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .icon-btn{width:34px;height:34px;border-radius:var(--radius-sm);display:grid;place-items:center;cursor:pointer;color:var(--muted-foreground);position:relative}
+  .icon-btn:hover{background:var(--background);color:var(--foreground)}
+  .icon-btn svg{width:18px;height:18px;stroke-width:1.9}
+  .dot{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--pr-urgent);border:2px solid var(--card)}
+
+  /* ===== 콘텐츠 ===== */
+  .content{flex:1;overflow-y:auto;padding:22px}
+  .page-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:18px}
+  .page-title{font-size:21px;font-weight:700;letter-spacing:-.02em}
+  .page-sub{font-size:13px;color:var(--muted-foreground);margin-top:3px}
+  .head-actions{margin-left:auto;display:flex;gap:8px}
+  .btn{display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--card);color:var(--foreground);cursor:pointer}
+  .btn svg{width:15px;height:15px;stroke-width:2}
+  .btn:hover{background:var(--background)}
+  .btn-primary{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 1px 2px rgba(79,70,229,.25)}
+  .btn-primary:hover{background:var(--primary-hover)}
+
+  .toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .seg{display:inline-flex;background:var(--card);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:3px;gap:2px}
+  .seg button{font-family:inherit;font-size:13px;font-weight:500;padding:5px 12px;border:none;background:transparent;color:var(--muted-foreground);border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .seg button svg{width:14px;height:14px;stroke-width:2}
+  .seg button.on{background:var(--primary);color:#fff;font-weight:600}
+  .chip-filter{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--muted-foreground);padding:7px 12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--card);cursor:pointer}
+  .chip-filter:hover{background:var(--background)}
+  .chip-filter svg{width:14px;height:14px;stroke-width:2}
+  .toolbar-right{margin-left:auto;display:flex;gap:8px}
+
+  .list-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-card);overflow:hidden}
+  .list-head{display:grid;grid-template-columns:30px minmax(280px,2.4fr) 120px 104px 128px 120px 88px;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--subtle);background:#fcfcfd}
+  .group-row{display:flex;align-items:center;gap:9px;padding:10px 18px;background:#fbfbfc;border-bottom:1px solid var(--border);font-weight:600;font-size:12.5px;color:var(--muted-foreground);cursor:pointer}
+  .group-row svg{width:14px;height:14px;stroke-width:2.2}
+  .group-row .g-count{font-size:11px;font-weight:600;color:var(--subtle);background:#eef0f3;padding:1px 8px;border-radius:var(--radius-pill)}
+  .group-dot{width:8px;height:8px;border-radius:2px}
+  .task-row{display:grid;grid-template-columns:30px minmax(280px,2.4fr) 120px 104px 128px 120px 88px;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border);cursor:pointer}
+  .task-row:last-child{border-bottom:none}
+  .task-row:hover{background:#fafbfc}
+  .checkbox{width:18px;height:18px;border-radius:6px;border:1.8px solid var(--border-strong);background:#fff;display:grid;place-items:center}
+  .checkbox svg{width:11px;height:11px;stroke-width:3;color:#fff;opacity:0}
+  .task-row.done .checkbox{background:var(--st-done-tx);border-color:var(--st-done-tx)}
+  .task-row.done .checkbox svg{opacity:1}
+  .t-main{min-width:0}
+  .t-title{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+  .task-row.done .t-title{color:var(--subtle);text-decoration:line-through}
+  .t-meta{display:flex;align-items:center;gap:10px;margin-top:4px;font-size:12px;color:var(--subtle)}
+  .t-code{font-weight:600;color:var(--muted-foreground)}
+  .t-tag{font-size:11px;font-weight:500;padding:1px 8px;border-radius:var(--radius-pill);background:#f1f2f5;color:var(--muted-foreground)}
+  .t-sub{display:inline-flex;align-items:center;gap:4px}
+  .t-sub svg{width:12px;height:12px;stroke-width:2}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:var(--radius-pill);white-space:nowrap}
+  .badge .b-dot{width:6px;height:6px;border-radius:50%}
+  .st-progress{background:var(--st-progress-bg);color:var(--st-progress-tx)}.st-progress .b-dot{background:var(--st-progress-tx)}
+  .st-review{background:var(--st-review-bg);color:var(--st-review-tx)}.st-review .b-dot{background:var(--st-review-tx)}
+  .st-todo{background:var(--st-todo-bg);color:var(--st-todo-tx)}.st-todo .b-dot{background:var(--st-todo-tx)}
+  .st-done{background:var(--st-done-bg);color:var(--st-done-tx)}.st-done .b-dot{background:var(--st-done-tx)}
+  .prio{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted-foreground)}
+  .prio svg{width:14px;height:14px;stroke-width:2.2}
+  .prio.urgent{color:var(--pr-urgent)}.prio.high{color:var(--pr-high)}.prio.med{color:var(--pr-med)}.prio.low{color:var(--pr-low)}
+  .assignee{display:flex;align-items:center;gap:8px}
+  .assignee .avatar{width:26px;height:26px;font-size:10px}
+  .assignee .a-name{font-size:13px;font-weight:500;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .av-2{background:linear-gradient(135deg,#f59e0b,#ef4444)}.av-3{background:linear-gradient(135deg,#10b981,#059669)}.av-4{background:linear-gradient(135deg,#3b82f6,#6366f1)}.av-5{background:linear-gradient(135deg,#ec4899,#db2777)}
+  .progress-wrap{display:flex;align-items:center;gap:9px}
+  .progress-bar{flex:1;height:6px;border-radius:var(--radius-pill);background:#eef0f3;overflow:hidden}
+  .progress-fill{height:100%;border-radius:var(--radius-pill);background:var(--primary)}
+  .progress-val{font-size:12px;font-weight:600;color:var(--muted-foreground);width:30px;text-align:right}
+  .due{font-size:13px;font-weight:500;color:var(--muted-foreground);white-space:nowrap}
+  .due.soon{color:var(--pr-urgent);font-weight:600}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#dfe2e8;border-radius:10px;border:3px solid var(--background)}
+  .side-scroll::-webkit-scrollbar-thumb{border-color:var(--card)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== 멀티 프로젝트 사이드바 ===== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">d</div>
+      <div class="brand-name">den<small>프로젝트 관리</small></div>
+    </div>
+
+    <div class="side-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input placeholder="프로젝트 검색...">
+    </div>
+
+    <div class="side-scroll">
+      <!-- 고정 상단 메뉴 -->
+      <div class="top-nav">
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          전체 프로젝트
+          <span class="count">37</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>
+          내 업무
+          <span class="count">12</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16v16H4z" opacity="0"/><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 1.5"/></svg>
+          최근 본 항목
+        </div>
+      </div>
+
+      <!-- 즐겨찾기 -->
+      <div class="side-section">
+        <svg class="sec-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg>
+        즐겨찾기
+      </div>
+      <div class="proj-item active">
+        <span class="proj-dot" style="background:#6366f1"></span>
+        모바일 앱 개편
+        <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg>
+      </div>
+      <div class="proj-item">
+        <span class="proj-dot" style="background:#10b981"></span>
+        백엔드 마이그레이션
+        <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg>
+      </div>
+      <div class="proj-item">
+        <span class="proj-dot" style="background:#f59e0b"></span>
+        Erta-SIM 보안인증
+        <span class="p-unread">5</span>
+      </div>
+
+      <!-- 폴더: erta-sim -->
+      <div class="side-section">
+        <svg class="sec-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg>
+        폴더
+        <span class="sec-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg></span>
+      </div>
+
+      <div class="folder">
+        <div class="folder-head">
+          <svg class="f-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg>
+          <svg class="f-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          erta-sim
+          <span class="f-count">4</span>
+        </div>
+        <div class="folder-body">
+          <div class="proj-item"><span class="proj-dot" style="background:#f59e0b"></span>보안인증-조달등록</div>
+          <div class="proj-item"><span class="proj-dot" style="background:#8b5cf6"></span>Erta-SIM 3.5</div>
+          <div class="proj-item"><span class="proj-dot" style="background:#ec4899"></span>TFA 연동</div>
+          <div class="proj-item"><span class="proj-dot" style="background:#0ea5e9"></span>ZTNA 인프라</div>
+        </div>
+      </div>
+
+      <div class="folder">
+        <div class="folder-head">
+          <svg class="f-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg>
+          <svg class="f-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          app
+          <span class="f-count">3</span>
+        </div>
+        <div class="folder-body">
+          <div class="proj-item"><span class="proj-dot" style="background:#6366f1"></span>모바일 앱 개편</div>
+          <div class="proj-item"><span class="proj-dot" style="background:#14b8a6"></span>Girok 게임</div>
+          <div class="proj-item"><span class="proj-dot" style="background:#ef4444"></span>Paint Clash</div>
+        </div>
+      </div>
+
+      <div class="folder collapsed">
+        <div class="folder-head">
+          <svg class="f-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg>
+          <svg class="f-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          external
+          <span class="f-count">6</span>
+        </div>
+        <div class="folder-body">
+          <div class="proj-item"><span class="proj-dot" style="background:#22c55e"></span>artpiad2026</div>
+          <div class="proj-item"><span class="proj-dot" style="background:#a855f7"></span>마이파이</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-foot">
+      <div class="user-chip">
+        <div class="avatar">JK</div>
+        <div>
+          <div class="u-name">정경호</div>
+          <div class="u-role">프로젝트 리드</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== 메인 ===== -->
+  <div class="main">
+    <!-- 컨텍스트 바: 선택된 프로젝트 + 그 안의 메뉴 -->
+    <div class="ctxbar">
+      <div class="ctx-proj"><span class="proj-dot" style="background:#6366f1"></span>모바일 앱 개편</div>
+      <div class="ctx-tab active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+        업무
+      </div>
+      <div class="ctx-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        간트차트
+      </div>
+      <div class="ctx-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        메신저
+        <span class="t-badge">3</span>
+      </div>
+      <div class="ctx-tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        설정
+      </div>
+      <div class="ctxbar-right">
+        <div class="side-search" style="margin:0;width:220px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input placeholder="업무 검색...">
+        </div>
+        <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="dot"></span></div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <div class="page-title">업무 목록</div>
+          <div class="page-sub">전체 24개 업무 · 진행 중 9개</div>
+        </div>
+        <div class="head-actions">
+          <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v18M3 12h18"/></svg>가져오기</button>
+          <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>새 업무</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="seg">
+          <button class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>리스트</button>
+          <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 6h10M8 12h7M8 18h4M4 5v14"/></svg>간트차트</button>
+        </div>
+        <div class="chip-filter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></svg>상태</div>
+        <div class="chip-filter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg>담당자</div>
+        <div class="chip-filter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M6 12h12M9 18h6"/></svg>우선순위</div>
+        <div class="toolbar-right"><div class="chip-filter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M7 12h10M10 18h4"/></svg>그룹: 상태</div></div>
+      </div>
+
+      <div class="list-card">
+        <div class="list-head">
+          <div></div><div>업무</div><div>상태</div><div>우선순위</div><div>담당자</div><div>진행률</div><div>마감</div>
+        </div>
+
+        <div class="group-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg><span class="group-dot" style="background:var(--st-progress-tx)"></span>진행 중<span class="g-count">3</span></div>
+
+        <div class="task-row">
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="t-main"><div class="t-title">로그인 화면 SNS 연동 리디자인</div><div class="t-meta"><span class="t-code">APP-142</span><span class="t-tag">디자인</span><span class="t-sub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>4</span></div></div>
+          <div><span class="badge st-progress"><span class="b-dot"></span>진행 중</span></div>
+          <div><span class="prio urgent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2 2 20h20z"/><path d="M12 9v4M12 17h.01"/></svg>긴급</span></div>
+          <div class="assignee"><span class="avatar av-2">SY</span><span class="a-name">신유진</span></div>
+          <div><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:65%"></div></div><span class="progress-val">65%</span></div></div>
+          <div class="due soon">내일</div>
+        </div>
+
+        <div class="task-row">
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="t-main"><div class="t-title">푸시 알림 라우팅 로직 구현 (notice_id 기반)</div><div class="t-meta"><span class="t-code">APP-138</span><span class="t-tag">개발</span></div></div>
+          <div><span class="badge st-progress"><span class="b-dot"></span>진행 중</span></div>
+          <div><span class="prio high"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m18 15-6-6-6 6"/></svg>높음</span></div>
+          <div class="assignee"><span class="avatar av-4">JK</span><span class="a-name">정경호</span></div>
+          <div><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div><span class="progress-val">40%</span></div></div>
+          <div class="due">7월 8일</div>
+        </div>
+
+        <div class="task-row">
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="t-main"><div class="t-title">QR 투표 화면 상태값 stale-closure 이슈 해결</div><div class="t-meta"><span class="t-code">APP-135</span><span class="t-tag">버그</span><span class="t-sub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>7</span></div></div>
+          <div><span class="badge st-progress"><span class="b-dot"></span>진행 중</span></div>
+          <div><span class="prio med"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14"/></svg>보통</span></div>
+          <div class="assignee"><span class="avatar av-4">JK</span><span class="a-name">정경호</span></div>
+          <div><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:80%"></div></div><span class="progress-val">80%</span></div></div>
+          <div class="due">7월 10일</div>
+        </div>
+
+        <div class="group-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg><span class="group-dot" style="background:var(--st-review-tx)"></span>검토<span class="g-count">2</span></div>
+
+        <div class="task-row">
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="t-main"><div class="t-title">Android PDF 다운로드 저장 경로 수정</div><div class="t-meta"><span class="t-code">APP-130</span><span class="t-tag">개발</span></div></div>
+          <div><span class="badge st-review"><span class="b-dot"></span>검토</span></div>
+          <div><span class="prio med"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14"/></svg>보통</span></div>
+          <div class="assignee"><span class="avatar av-3">KM</span><span class="a-name">김민석</span></div>
+          <div><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div><span class="progress-val">100%</span></div></div>
+          <div class="due">7월 5일</div>
+        </div>
+
+        <div class="task-row">
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="t-main"><div class="t-title">다국어 메시지 로딩 i18n 키 누락 검수</div><div class="t-meta"><span class="t-code">APP-127</span><span class="t-tag">QA</span></div></div>
+          <div><span class="badge st-review"><span class="b-dot"></span>검토</span></div>
+          <div><span class="prio low"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg>낮음</span></div>
+          <div class="assignee"><span class="avatar av-5">HR</span><span class="a-name">한소라</span></div>
+          <div><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:90%"></div></div><span class="progress-val">90%</span></div></div>
+          <div class="due">7월 9일</div>
+        </div>
+
+        <div class="group-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg><span class="group-dot" style="background:var(--st-todo-tx)"></span>할 일<span class="g-count">2</span></div>
+
+        <div class="task-row">
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="t-main"><div class="t-title">앱스토어 심사 리젝 대응 — 생년월일 검증 로직</div><div class="t-meta"><span class="t-code">APP-121</span><span class="t-tag">개발</span></div></div>
+          <div><span class="badge st-todo"><span class="b-dot"></span>할 일</span></div>
+          <div><span class="prio urgent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2 2 20h20z"/><path d="M12 9v4M12 17h.01"/></svg>긴급</span></div>
+          <div class="assignee"><span class="avatar av-4">JK</span><span class="a-name">정경호</span></div>
+          <div><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div><span class="progress-val">0%</span></div></div>
+          <div class="due soon">오늘</div>
+        </div>
+
+        <div class="task-row">
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="t-main"><div class="t-title">Facebook iOS 제한적 로그인 JWT/nonce 처리</div><div class="t-meta"><span class="t-code">APP-118</span><span class="t-tag">개발</span></div></div>
+          <div><span class="badge st-todo"><span class="b-dot"></span>할 일</span></div>
+          <div><span class="prio high"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m18 15-6-6-6 6"/></svg>높음</span></div>
+          <div class="assignee"><span class="avatar av-3">KM</span><span class="a-name">김민석</span></div>
+          <div><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div><span class="progress-val">0%</span></div></div>
+          <div class="due">7월 14일</div>
+        </div>
+
+        <div class="group-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg><span class="group-dot" style="background:var(--st-done-tx)"></span>완료<span class="g-count">2</span></div>
+
+        <div class="task-row done">
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="t-main"><div class="t-title">SNS 로그인 오버레이 로딩 상태 관리</div><div class="t-meta"><span class="t-code">APP-110</span><span class="t-tag">개발</span></div></div>
+          <div><span class="badge st-done"><span class="b-dot"></span>완료</span></div>
+          <div><span class="prio med"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14"/></svg>보통</span></div>
+          <div class="assignee"><span class="avatar av-2">SY</span><span class="a-name">신유진</span></div>
+          <div><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--st-done-tx)"></div></div><span class="progress-val">100%</span></div></div>
+          <div class="due">7월 1일</div>
+        </div>
+
+        <div class="task-row done">
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="t-main"><div class="t-title">재실행 라우팅 AppAuthState 처리</div><div class="t-meta"><span class="t-code">APP-104</span><span class="t-tag">개발</span></div></div>
+          <div><span class="badge st-done"><span class="b-dot"></span>완료</span></div>
+          <div><span class="prio low"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg>낮음</span></div>
+          <div class="assignee"><span class="avatar av-4">JK</span><span class="a-name">정경호</span></div>
+          <div><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--st-done-tx)"></div></div><span class="progress-val">100%</span></div></div>
+          <div class="due">6월 28일</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

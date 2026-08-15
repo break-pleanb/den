@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전체 프로젝트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --background:#f7f8fa;--card:#fff;--foreground:#1e2230;
+    --muted-foreground:#6b7280;--subtle:#9ca3af;
+    --border:#eceef2;--border-strong:#e2e5ea;
+    --primary:#4f46e5;--primary-hover:#4338ca;--primary-soft:#eef2ff;
+    --radius:14px;--radius-sm:9px;--radius-pill:999px;
+    --st-progress-tx:#4f46e5;--st-review-tx:#b76a09;--st-done-tx:#1a9457;--st-todo-tx:#565d6d;
+    --shadow-card:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.03);
+    --shadow-hover:0 6px 18px rgba(16,24,40,.09);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:'Inter','Noto Sans KR',-apple-system,sans-serif;background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+  .app{display:flex;height:100vh;overflow:hidden}
+
+  /* 간략 사이드바 (전체 프로젝트가 활성) */
+  .sidebar{width:264px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column}
+  .brand{display:flex;align-items:center;gap:10px;padding:16px 16px 12px}
+  .brand-mark{width:30px;height:30px;border-radius:8px;background:var(--primary);display:grid;place-items:center;color:#fff;font-weight:700;font-size:15px;box-shadow:0 2px 6px rgba(79,70,229,.35)}
+  .brand-name{font-weight:700;font-size:15px}.brand-name small{display:block;font-weight:500;font-size:11px;color:var(--subtle)}
+  .side-search{margin:4px 12px 10px;display:flex;align-items:center;gap:8px;background:var(--background);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:7px 10px;color:var(--subtle)}
+  .side-search svg{width:14px;height:14px;stroke-width:2}
+  .side-search input{border:none;background:transparent;outline:none;font-family:inherit;font-size:13px;color:var(--foreground);width:100%}
+  .side-scroll{flex:1;overflow-y:auto;padding:0 8px 8px}
+  .top-nav{padding:0 4px 6px;border-bottom:1px solid var(--border);margin-bottom:6px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-sm);color:var(--muted-foreground);font-weight:500;cursor:pointer;margin-bottom:2px}
+  .nav-item svg{width:17px;height:17px;stroke-width:1.9}
+  .nav-item:hover{background:#f4f5f7;color:var(--foreground)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .nav-item .count{margin-left:auto;font-size:11px;font-weight:600;background:#eef0f3;color:var(--muted-foreground);padding:1px 7px;border-radius:var(--radius-pill)}
+  .nav-item.active .count{background:#fff;color:var(--primary)}
+  .side-section{display:flex;align-items:center;gap:6px;padding:12px 10px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--subtle)}
+  .proj-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:var(--radius-sm);color:var(--muted-foreground);font-weight:500;font-size:13.5px;cursor:pointer;margin-bottom:1px}
+  .proj-item:hover{background:#f4f5f7;color:var(--foreground)}
+  .proj-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .proj-item .star{margin-left:auto;width:14px;height:14px;color:#f5b800;fill:#f5b800}
+  .side-foot{border-top:1px solid var(--border);padding:8px}
+  .user-chip{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--radius-sm);cursor:pointer}
+  .user-chip:hover{background:#f4f5f7}
+  .avatar{width:30px;height:30px;border-radius:var(--radius-pill);background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;display:grid;place-items:center;font-weight:600;font-size:12px;flex-shrink:0}
+  .u-name{font-weight:600;font-size:13px}.u-role{font-size:11px;color:var(--subtle)}
+
+  /* 메인 */
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .content{flex:1;overflow-y:auto;padding:28px 32px}
+  .page-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:22px}
+  .page-title{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .page-sub{font-size:13px;color:var(--muted-foreground);margin-top:4px}
+  .head-actions{margin-left:auto;display:flex;gap:8px}
+  .btn{display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13px;font-weight:600;padding:9px 15px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--card);color:var(--foreground);cursor:pointer}
+  .btn svg{width:15px;height:15px;stroke-width:2}
+  .btn:hover{background:var(--background)}
+  .btn-primary{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 1px 2px rgba(79,70,229,.25)}
+  .btn-primary:hover{background:var(--primary-hover)}
+
+  /* 상단 검색+필터 바 */
+  .home-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+  .home-search{flex:1;max-width:420px;display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 13px;color:var(--subtle)}
+  .home-search svg{width:16px;height:16px;stroke-width:2}
+  .home-search input{border:none;background:transparent;outline:none;font-family:inherit;font-size:14px;color:var(--foreground);width:100%}
+  .seg{display:inline-flex;background:var(--card);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:3px;gap:2px}
+  .seg button{font-family:inherit;font-size:13px;font-weight:500;padding:6px 12px;border:none;background:transparent;color:var(--muted-foreground);border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .seg button svg{width:14px;height:14px;stroke-width:2}
+  .seg button.on{background:var(--primary);color:#fff;font-weight:600}
+
+  /* 섹션 */
+  .section-title{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.04em;margin:6px 2px 14px}
+  .section-title .st-icon{width:15px;height:15px;stroke-width:2.2;color:var(--subtle)}
+  .section-title .st-star{color:#f5b800;fill:#f5b800}
+  .section-title .st-count{font-size:11px;font-weight:600;color:var(--subtle);background:#eef0f3;padding:1px 8px;border-radius:var(--radius-pill)}
+  .section+.section{margin-top:32px}
+
+  /* 카드 그리드 */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+  .pcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-card);padding:18px;cursor:pointer;transition:box-shadow .15s,transform .15s,border-color .15s;position:relative}
+  .pcard:hover{box-shadow:var(--shadow-hover);transform:translateY(-2px);border-color:var(--border-strong)}
+  .pcard-top{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+  .pcard-mark{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0}
+  .pcard-title{font-weight:700;font-size:15px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcard-key{font-size:12px;color:var(--subtle);font-weight:500;margin-top:1px}
+  .pcard-star{margin-left:auto;width:16px;height:16px;stroke-width:2;color:#d1d5db;flex-shrink:0}
+  .pcard-star.on{color:#f5b800;fill:#f5b800}
+  .pcard-desc{font-size:13px;color:var(--muted-foreground);line-height:1.55;margin-bottom:16px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:40px}
+  /* 진행 요약 바 */
+  .pcard-progress{height:7px;border-radius:var(--radius-pill);background:#eef0f3;overflow:hidden;display:flex;margin-bottom:10px}
+  .pcard-progress i{height:100%;display:block}
+  .pcard-stats{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--muted-foreground);margin-bottom:14px}
+  .pcard-stats b{color:var(--foreground);font-weight:600}
+  .stat-item{display:inline-flex;align-items:center;gap:5px}
+  .stat-dot{width:7px;height:7px;border-radius:50%}
+  .pcard-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:13px}
+  .members{display:flex;align-items:center}
+  .members .m{width:26px;height:26px;border-radius:var(--radius-pill);border:2px solid var(--card);display:grid;place-items:center;color:#fff;font-weight:600;font-size:10px;margin-left:-7px}
+  .members .m:first-child{margin-left:0}
+  .members .more{background:#eef0f3;color:var(--muted-foreground)}
+  .pcard-role{font-size:11px;font-weight:600;padding:3px 10px;border-radius:var(--radius-pill);background:var(--primary-soft);color:var(--primary)}
+  .pcard-role.viewer{background:#f1f2f5;color:#565d6d}
+  .av-a{background:linear-gradient(135deg,#6366f1,#8b5cf6)}.av-b{background:linear-gradient(135deg,#f59e0b,#ef4444)}
+  .av-c{background:linear-gradient(135deg,#10b981,#059669)}.av-d{background:linear-gradient(135deg,#3b82f6,#6366f1)}
+  .av-e{background:linear-gradient(135deg,#ec4899,#db2777)}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#dfe2e8;border-radius:10px;border:3px solid var(--background)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 사이드바 (전체 프로젝트 활성) -->
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">d</div><div class="brand-name">den<small>프로젝트 관리</small></div></div>
+    <div class="side-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="프로젝트 검색..."></div>
+    <div class="side-scroll">
+      <div class="top-nav">
+        <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>전체 프로젝트<span class="count">37</span></div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>내 업무<span class="count">12</span></div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 1.5"/></svg>최근 본 항목</div>
+      </div>
+      <div class="side-section">즐겨찾기</div>
+      <div class="proj-item"><span class="proj-dot" style="background:#6366f1"></span>모바일 앱 개편<svg class="star" viewBox="0 0 24 24"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg></div>
+      <div class="proj-item"><span class="proj-dot" style="background:#10b981"></span>백엔드 마이그레이션<svg class="star" viewBox="0 0 24 24"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg></div>
+      <div class="side-section">폴더</div>
+      <div class="proj-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;color:var(--muted-foreground)"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>erta-sim</div>
+      <div class="proj-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;color:var(--muted-foreground)"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>app</div>
+      <div class="proj-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;color:var(--muted-foreground)"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>external</div>
+    </div>
+    <div class="side-foot"><div class="user-chip"><div class="avatar">JK</div><div><div class="u-name">정경호</div><div class="u-role">프로젝트 리드</div></div></div></div>
+  </aside>
+
+  <div class="main">
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <div class="page-title">전체 프로젝트</div>
+          <div class="page-sub">37개 프로젝트에 참여 중 · 즐겨찾기 2개</div>
+        </div>
+        <div class="head-actions">
+          <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>새 폴더</button>
+          <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>새 프로젝트</button>
+        </div>
+      </div>
+
+      <div class="home-toolbar">
+        <div class="home-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="프로젝트 이름, 폴더로 검색..."></div>
+        <div class="seg">
+          <button class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>카드</button>
+          <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>목록</button>
+        </div>
+      </div>
+
+      <!-- 즐겨찾기 섹션 -->
+      <div class="section">
+        <div class="section-title">
+          <svg class="st-icon st-star" viewBox="0 0 24 24"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg>
+          즐겨찾기 <span class="st-count">2</span>
+        </div>
+        <div class="grid">
+          <!-- 카드 1 -->
+          <div class="pcard">
+            <div class="pcard-top">
+              <div class="pcard-mark av-a">M</div>
+              <div style="min-width:0">
+                <div class="pcard-title">모바일 앱 개편</div>
+                <div class="pcard-key">APP</div>
+              </div>
+              <svg class="pcard-star on" viewBox="0 0 24 24"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg>
+            </div>
+            <div class="pcard-desc">Flutter + React WebView 하이브리드 앱. SNS 로그인, 푸시 알림, QR 투표 기능 개편.</div>
+            <div class="pcard-progress">
+              <i style="width:38%;background:var(--st-done-tx)"></i>
+              <i style="width:25%;background:var(--st-progress-tx)"></i>
+              <i style="width:12%;background:var(--st-review-tx)"></i>
+            </div>
+            <div class="pcard-stats">
+              <span class="stat-item"><span class="stat-dot" style="background:var(--st-progress-tx)"></span>진행 <b>9</b></span>
+              <span class="stat-item"><span class="stat-dot" style="background:var(--st-done-tx)"></span>완료 <b>9</b></span>
+              <span class="stat-item">전체 <b>24</b></span>
+            </div>
+            <div class="pcard-foot">
+              <div class="members">
+                <span class="m av-d">JK</span><span class="m av-b">SY</span><span class="m av-c">KM</span><span class="m more">+2</span>
+              </div>
+              <span class="pcard-role">관리자</span>
+            </div>
+          </div>
+
+          <!-- 카드 2 -->
+          <div class="pcard">
+            <div class="pcard-top">
+              <div class="pcard-mark av-c">B</div>
+              <div style="min-width:0">
+                <div class="pcard-title">백엔드 마이그레이션</div>
+                <div class="pcard-key">BE</div>
+              </div>
+              <svg class="pcard-star on" viewBox="0 0 24 24"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg>
+            </div>
+            <div class="pcard-desc">Spring Boot 3 + PostgreSQL 전환. WebFlux에서 MVC로 재설계 및 Redis 캐시 도입.</div>
+            <div class="pcard-progress">
+              <i style="width:55%;background:var(--st-done-tx)"></i>
+              <i style="width:18%;background:var(--st-progress-tx)"></i>
+            </div>
+            <div class="pcard-stats">
+              <span class="stat-item"><span class="stat-dot" style="background:var(--st-progress-tx)"></span>진행 <b>4</b></span>
+              <span class="stat-item"><span class="stat-dot" style="background:var(--st-done-tx)"></span>완료 <b>11</b></span>
+              <span class="stat-item">전체 <b>18</b></span>
+            </div>
+            <div class="pcard-foot">
+              <div class="members"><span class="m av-d">JK</span><span class="m av-c">KM</span></div>
+              <span class="pcard-role">관리자</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 폴더: erta-sim -->
+      <div class="section">
+        <div class="section-title">
+          <svg class="st-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          erta-sim <span class="st-count">4</span>
+        </div>
+        <div class="grid">
+          <div class="pcard">
+            <div class="pcard-top"><div class="pcard-mark av-b">보</div><div style="min-width:0"><div class="pcard-title">보안인증-조달등록</div><div class="pcard-key">SEC</div></div><svg class="pcard-star" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg></div>
+            <div class="pcard-desc">공공기관 조달 등록을 위한 보안 인증 문서 작업 및 심사 대응.</div>
+            <div class="pcard-progress"><i style="width:70%;background:var(--st-done-tx)"></i><i style="width:10%;background:var(--st-progress-tx)"></i></div>
+            <div class="pcard-stats"><span class="stat-item"><span class="stat-dot" style="background:var(--st-progress-tx)"></span>진행 <b>2</b></span><span class="stat-item"><span class="stat-dot" style="background:var(--st-done-tx)"></span>완료 <b>14</b></span><span class="stat-item">전체 <b>20</b></span></div>
+            <div class="pcard-foot"><div class="members"><span class="m av-d">JK</span><span class="m av-e">HR</span></div><span class="pcard-role">관리자</span></div>
+          </div>
+          <div class="pcard">
+            <div class="pcard-top"><div class="pcard-mark av-a">3</div><div style="min-width:0"><div class="pcard-title">Erta-SIM 3.5</div><div class="pcard-key">SIM</div></div><svg class="pcard-star" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg></div>
+            <div class="pcard-desc">SIM 보안 솔루션 3.5 버전 기능 개선 및 릴리스 준비.</div>
+            <div class="pcard-progress"><i style="width:30%;background:var(--st-done-tx)"></i><i style="width:35%;background:var(--st-progress-tx)"></i><i style="width:8%;background:var(--st-review-tx)"></i></div>
+            <div class="pcard-stats"><span class="stat-item"><span class="stat-dot" style="background:var(--st-progress-tx)"></span>진행 <b>7</b></span><span class="stat-item"><span class="stat-dot" style="background:var(--st-done-tx)"></span>완료 <b>6</b></span><span class="stat-item">전체 <b>21</b></span></div>
+            <div class="pcard-foot"><div class="members"><span class="m av-d">JK</span><span class="m av-c">KM</span><span class="m av-b">SY</span></div><span class="pcard-role viewer">뷰어</span></div>
+          </div>
+          <div class="pcard">
+            <div class="pcard-top"><div class="pcard-mark av-e">T</div><div style="min-width:0"><div class="pcard-title">TFA 연동</div><div class="pcard-key">TFA</div></div><svg class="pcard-star" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg></div>
+            <div class="pcard-desc">2단계 인증(TFA) 모듈 타사 서비스 연동 작업.</div>
+            <div class="pcard-progress"><i style="width:20%;background:var(--st-done-tx)"></i><i style="width:15%;background:var(--st-progress-tx)"></i></div>
+            <div class="pcard-stats"><span class="stat-item"><span class="stat-dot" style="background:var(--st-progress-tx)"></span>진행 <b>3</b></span><span class="stat-item"><span class="stat-dot" style="background:var(--st-done-tx)"></span>완료 <b>2</b></span><span class="stat-item">전체 <b>9</b></span></div>
+            <div class="pcard-foot"><div class="members"><span class="m av-c">KM</span></div><span class="pcard-role viewer">편집자</span></div>
+          </div>
+          <div class="pcard">
+            <div class="pcard-top"><div class="pcard-mark av-d">Z</div><div style="min-width:0"><div class="pcard-title">ZTNA 인프라</div><div class="pcard-key">ZT</div></div><svg class="pcard-star" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3-5.5-3-5.5 3 1-6.3L3 8.9 9 8z"/></svg></div>
+            <div class="pcard-desc">Guacamole 기반 RDP 세션 레코딩 및 ZTNA 게이트웨이 구축.</div>
+            <div class="pcard-progress"><i style="width:45%;background:var(--st-done-tx)"></i><i style="width:20%;background:var(--st-progress-tx)"></i></div>
+            <div class="pcard-stats"><span class="stat-item"><span class="stat-dot" style="background:var(--st-progress-tx)"></span>진행 <b>5</b></span><span class="stat-item"><span class="stat-dot" style="background:var(--st-done-tx)"></span>완료 <b>8</b></span><span class="stat-item">전체 <b>17</b></span></div>
+            <div class="pcard-foot"><div class="members"><span class="m av-d">JK</span><span class="m av-c">KM</span></div><span class="pcard-role">관리자</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
