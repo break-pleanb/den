@@ -254,8 +254,10 @@ function onSubmitComment(payload: { body: string; mentionUserIds: string[] }) {
 
 // ── 닫기 ──────────────────────────────────────────────────
 
+// 닫기는 push가 아닌 replace — 열기(push)와 짝을 이뤄 히스토리를 쌓지 않는다.
+// 상세를 여러 번 여닫아도 뒤로가기 한 번이면 목록으로 돌아간다.
 function close() {
-  router.push({ name: 'tasks', params: { projectKey: props.projectKey }, query: route.query })
+  router.replace({ name: 'tasks', params: { projectKey: props.projectKey }, query: route.query })
 }
 
 function onKeydown(e: KeyboardEvent) {

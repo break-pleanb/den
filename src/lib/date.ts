@@ -15,6 +15,20 @@ export function formatDueLabel(endDate: string, isDone: boolean): { label: strin
   return { label, urgent }
 }
 
+// 간트차트 드래그 결과(Date 객체)를 ISO 날짜 문자열로 변환
+export function formatISODate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// 간트차트 팝업 등 짧은 날짜 표시용 — "M월 D일"
+export function formatMonthDay(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00`)
+  return `${date.getMonth() + 1}월 ${date.getDate()}일`
+}
+
 // 멤버 초대일 표시용 포맷 — "YYYY.MM.DD"
 export function formatInviteDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00`)

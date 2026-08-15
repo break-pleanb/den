@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ChevronDown, Flag, Rows3, Users as UsersIcon, ListFilter } from '@lucide/vue'
-import { fetchProjectByKey, fetchTagsByProjectKey, fetchTasksByProjectKey, fetchUsers, updateTaskStatus } from '@/mock/api'
+import { fetchProjectByKey, fetchTagsByProjectKey, fetchTasksByProjectKey, fetchUsers, updateTask, updateTaskStatus } from '@/mock/api'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import TaskFilterMenu from '@/features/tasks/components/TaskFilterMenu.vue'
+import TaskGanttChart from '@/features/tasks/components/TaskGanttChart.vue'
 import TaskRow from '@/features/tasks/components/TaskRow.vue'
 import { PRIORITY_LABEL, PRIORITY_ORDER, PRIORITY_TEXT_CLASS, STATUS_DOT_CLASS, STATUS_LABEL, STATUS_ORDER } from '@/lib/constants'
 import type { Task, TaskPriority, TaskStatus } from '@/mock/types'
@@ -89,6 +90,7 @@ const groupBy = computed<'status' | 'assignee' | 'none'>(() => {
   const g = route.query.group
   return g === 'assignee' || g === 'none' ? g : 'status'
 })
+const isGanttView = computed(() => route.query.view === 'gantt')
 
 // 필터·그룹·페이지 변경은 뒤로가기로 직전 상태를 복원할 수 있어야 하므로
 // router.replace가 아닌 router.push로 히스토리에 쌓는다 (URL 우선 원칙).
@@ -197,6 +199,12 @@ const depthById = computed(() => {
 })
 const orderedTasks = computed(() => (groupBy.value === 'none' ? noneTreeOrder.value.map((x) => x.task) : sortedTasks.value))
 
+// 간트차트는 페이지 개념 없이 리스트 뷰와 동일한 순서(sortedTasks)를 그대로 쓴다 —
+// 시작일로 다시 정렬하지 않는다. buildTreeOrder로 부모-자식만 인접하게 묶어 계층을 드러낸다.
+const ganttOrder = computed(() => buildTreeOrder(sortedTasks.value))
+const ganttTasks = computed(() => ganttOrder.value.map((x) => x.task))
+const ganttDepthById = computed(() => Object.fromEntries(ganttOrder.value.map((x) => [x.task.id, x.depth])))
+
 const totalItems = computed(() => filteredTasks.value.length)
 const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / PAGE_SIZE)))
 const currentPage = computed(() => Math.min(Math.max(1, Number(route.query.page) || 1), totalPages.value))
@@ -243,6 +251,22 @@ const toggleDoneMutation = useMutation({
 function onToggleDone(task: Task) {
   toggleDoneMutation.mutate({ taskId: task.id, status: task.status === 'done' ? 'todo' : 'done' })
 }
+
+// ── 간트차트 드래그 편집 (목업 데이터를 실제로 변경) ──
+
+const updateTaskMutation = useMutation({
+  mutationFn: (payload: { taskId: string; patch: Parameters<typeof updateTask>[1] }) =>
+    updateTask(payload.taskId, payload.patch),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks', projectKey.value] }),
+})
+
+function onGanttDatesChange(payload: { taskId: string; startDate: string; endDate: string }) {
+  updateTaskMutation.mutate({ taskId: payload.taskId, patch: { startDate: payload.startDate, endDate: payload.endDate } })
+}
+
+function onGanttProgressChange(payload: { taskId: string; progress: number }) {
+  updateTaskMutation.mutate({ taskId: payload.taskId, patch: { progress: payload.progress } })
+}
 </script>
 
 <template>
@@ -259,7 +283,7 @@ function onToggleDone(task: Task) {
       <TaskFilterMenu label="담당자" :icon="UsersIcon" :options="assigneeOptions" :selected="assigneeFilter" @update:selected="setAssigneeFilter" />
       <TaskFilterMenu label="우선순위" :icon="Flag" :options="priorityOptions" :selected="priorityFilter" @update:selected="setPriorityFilter" />
 
-      <div class="ml-auto">
+      <div v-if="!isGanttView" class="ml-auto">
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
             <button
@@ -284,6 +308,18 @@ function onToggleDone(task: Task) {
     <div v-if="!filteredTasks.length" class="rounded-lg border border-border bg-card py-16 text-center text-sm text-muted-foreground">
       조건에 맞는 업무가 없습니다.
     </div>
+
+    <TaskGanttChart
+      v-else-if="isGanttView"
+      :project-key="projectKey"
+      :tasks="ganttTasks"
+      :users-by-id="usersById"
+      :query="route.query"
+      :depth-by-id="ganttDepthById"
+      :parent-code-by-id="parentCodeById"
+      @update-dates="onGanttDatesChange"
+      @update-progress="onGanttProgressChange"
+    />
 
     <div v-else class="overflow-hidden rounded-lg border border-border bg-card shadow-card">
       <div
