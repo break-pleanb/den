@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { LocationQueryRaw } from 'vue-router'
-import { Check, ChevronDown, Equal, MessageSquare, TriangleAlert, ChevronUp } from '@lucide/vue'
+import { Check, ChevronDown, CornerDownRight, Equal, MessageSquare, TriangleAlert, ChevronUp } from '@lucide/vue'
 import { formatDueLabel } from '@/lib/date'
 import { PRIORITY_LABEL, PRIORITY_TEXT_CLASS, STATUS_BADGE_CLASS, STATUS_DOT_CLASS, STATUS_LABEL } from '@/lib/constants'
 import type { Tag, Task, TaskPriority, User } from '@/mock/types'
 
-const props = defineProps<{
-  projectKey: string
-  task: Task
-  assignees: User[]
-  tag?: Tag
-  query: LocationQueryRaw
-}>()
+const props = withDefaults(
+  defineProps<{
+    projectKey: string
+    task: Task
+    assignees: User[]
+    tag?: Tag
+    query: LocationQueryRaw
+    parentCode?: string
+    subtaskCount?: number
+    depth?: number
+  }>(),
+  { depth: 0 },
+)
 
 defineEmits<{ 'toggle-done': [] }>()
 
@@ -41,22 +47,29 @@ const due = computed(() => formatDueLabel(props.task.endDate, props.task.status 
       <Check v-if="task.status === 'done'" class="size-[11px] text-white" :stroke-width="3" />
     </button>
 
-    <div class="min-w-0">
-      <div
-        class="truncate text-sm font-semibold tracking-tight"
-        :class="task.status === 'done' ? 'text-subtle line-through' : 'text-foreground'"
-      >
-        {{ task.title }}
-      </div>
-      <div class="mt-1 flex items-center gap-2.5 text-xs text-subtle">
-        <span class="font-semibold text-muted-foreground">{{ task.code }}</span>
-        <span v-if="tag" class="rounded-full bg-[#f1f2f5] px-2 py-px text-[11px] font-medium text-muted-foreground">
-          {{ tag.name }}
-        </span>
-        <span v-if="task.commentCount > 0" class="inline-flex items-center gap-1">
-          <MessageSquare class="size-3" :stroke-width="2" />
-          {{ task.commentCount }}
-        </span>
+    <div class="flex min-w-0 items-start gap-1.5" :style="depth ? { paddingLeft: `${depth * 18}px` } : undefined">
+      <CornerDownRight v-if="depth > 0" class="mt-0.5 size-3 shrink-0 text-subtle" :stroke-width="2.2" />
+      <div class="min-w-0">
+        <div
+          class="truncate text-sm font-semibold tracking-tight"
+          :class="task.status === 'done' ? 'text-subtle line-through' : 'text-foreground'"
+        >
+          {{ task.title }}
+        </div>
+        <div class="mt-1 flex items-center gap-2.5 text-xs text-subtle">
+          <span v-if="parentCode" class="text-subtle">↳ {{ parentCode }}</span>
+          <span class="font-semibold text-muted-foreground">{{ task.code }}</span>
+          <span v-if="subtaskCount" class="rounded-full bg-[#f1f2f5] px-2 py-px text-[11px] font-medium text-muted-foreground">
+            하위 {{ subtaskCount }}
+          </span>
+          <span v-if="tag" class="rounded-full bg-[#f1f2f5] px-2 py-px text-[11px] font-medium text-muted-foreground">
+            {{ tag.name }}
+          </span>
+          <span v-if="task.commentCount > 0" class="inline-flex items-center gap-1">
+            <MessageSquare class="size-3" :stroke-width="2" />
+            {{ task.commentCount }}
+          </span>
+        </div>
       </div>
     </div>
 

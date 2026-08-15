@@ -46,6 +46,27 @@ const { data: tags } = useQuery({
 
 const usersById = computed(() => Object.fromEntries((users.value ?? []).map((u) => [u.id, u])))
 const tagsById = computed(() => Object.fromEntries((tags.value ?? []).map((t) => [t.id, t])))
+const taskById = computed(() => Object.fromEntries((tasks.value ?? []).map((t) => [t.id, t])))
+
+// 계층 표시용 — 필터와 무관하게 전체 업무 기준으로 계산한다
+const parentCodeById = computed(() => {
+  const map: Record<string, string> = {}
+  for (const t of tasks.value ?? []) {
+    if (t.parentId) {
+      const parent = taskById.value[t.parentId]
+      if (parent) map[t.id] = parent.code
+    }
+  }
+  return map
+})
+
+const subtaskCountById = computed(() => {
+  const map: Record<string, number> = {}
+  for (const t of tasks.value ?? []) {
+    if (t.parentId) map[t.parentId] = (map[t.parentId] ?? 0) + 1
+  }
+  return map
+})
 
 const countByStatus = computed(() => {
   const counts = { todo: 0, progress: 0, review: 0, done: 0 }
@@ -147,13 +168,42 @@ const sortedTasks = computed(() => {
   return list
 })
 
+// 그룹핑 없음(group=none)일 때는 부모 업무 바로 아래 자식 업무를 이어붙여 트리로 보여준다.
+// 정렬 순서(우선순위·마감일)는 유지하되, 부모-자식 인접은 트리 구조가 우선한다.
+function buildTreeOrder(list: Task[]): { task: Task; depth: number }[] {
+  const idsInList = new Set(list.map((t) => t.id))
+  const childrenByParent = new Map<string, Task[]>()
+  for (const t of list) {
+    if (t.parentId && idsInList.has(t.parentId)) {
+      if (!childrenByParent.has(t.parentId)) childrenByParent.set(t.parentId, [])
+      childrenByParent.get(t.parentId)!.push(t)
+    }
+  }
+  const result: { task: Task; depth: number }[] = []
+  function visit(t: Task, depth: number) {
+    result.push({ task: t, depth })
+    for (const child of childrenByParent.get(t.id) ?? []) visit(child, depth + 1)
+  }
+  const roots = list.filter((t) => !t.parentId || !idsInList.has(t.parentId))
+  for (const root of roots) visit(root, 0)
+  return result
+}
+
+const noneTreeOrder = computed(() => (groupBy.value === 'none' ? buildTreeOrder(sortedTasks.value) : []))
+const depthById = computed(() => {
+  const map: Record<string, number> = {}
+  for (const { task, depth } of noneTreeOrder.value) map[task.id] = depth
+  return map
+})
+const orderedTasks = computed(() => (groupBy.value === 'none' ? noneTreeOrder.value.map((x) => x.task) : sortedTasks.value))
+
 const totalItems = computed(() => filteredTasks.value.length)
 const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / PAGE_SIZE)))
 const currentPage = computed(() => Math.min(Math.max(1, Number(route.query.page) || 1), totalPages.value))
 
 const pagedTasks = computed(() => {
   const start = (currentPage.value - 1) * PAGE_SIZE
-  return sortedTasks.value.slice(start, start + PAGE_SIZE)
+  return orderedTasks.value.slice(start, start + PAGE_SIZE)
 })
 
 interface DisplayGroup {
@@ -273,6 +323,9 @@ function onToggleDone(task: Task) {
             :assignees="task.assigneeIds.map((id) => usersById[id]).filter((u): u is NonNullable<typeof u> => !!u)"
             :tag="tagsById[task.tagIds[0] ?? '']"
             :query="route.query"
+            :parent-code="groupBy === 'none' ? undefined : parentCodeById[task.id]"
+            :subtask-count="subtaskCountById[task.id]"
+            :depth="depthById[task.id] ?? 0"
             @toggle-done="onToggleDone(task)"
           />
         </template>

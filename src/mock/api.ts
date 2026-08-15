@@ -2,6 +2,7 @@
 // 나중에 axios 기반 실제 API 함수로 교체될 자리 (시그니처는 최대한 유지).
 
 import { getChannelsByProject, getUnreadChannelCount } from './channels'
+import { getCommentsByTask, mockComments } from './comments'
 import {
   getUnreadNotificationCount as computeUnreadNotificationCount,
   mockNotifications,
@@ -11,7 +12,7 @@ import { mockFavoriteProjectIds, mockFolders, mockProjects, getProjectByKey } fr
 import { getSubtaskCount, getTaskById, getTasksByProject, mockTasks } from './tasks'
 import { getTagsByProject } from './tags'
 import { CURRENT_USER_ID, getUserById, mockUsers } from './users'
-import type { AppNotification, Channel, Folder, MenuKey, Project, Role, Tag, Task, User } from './types'
+import type { AppNotification, Channel, Comment, Folder, MenuKey, Project, Role, Tag, Task, User } from './types'
 
 // ── 프로젝트 / 폴더 / 즐겨찾기 ──────────────────────────────
 
@@ -143,6 +144,88 @@ export async function updateTaskStatus(taskId: string, status: Task['status']): 
   task.status = status
   if (status === 'done') task.progress = 100
   return structuredClone(task)
+}
+
+export type TaskPatch = Partial<
+  Pick<Task, 'title' | 'priority' | 'startDate' | 'endDate' | 'progress' | 'isPrivate'>
+>
+
+export async function updateTask(taskId: string, patch: TaskPatch): Promise<Task | undefined> {
+  const task = mockTasks.find((t) => t.id === taskId)
+  if (!task) return undefined
+  Object.assign(task, patch)
+  return structuredClone(task)
+}
+
+export async function updateTaskAssignees(taskId: string, assigneeIds: string[]): Promise<Task | undefined> {
+  const task = mockTasks.find((t) => t.id === taskId)
+  if (!task) return undefined
+  task.assigneeIds = assigneeIds
+  return structuredClone(task)
+}
+
+export async function updateTaskDependencies(taskId: string, dependencyIds: string[]): Promise<Task | undefined> {
+  const task = mockTasks.find((t) => t.id === taskId)
+  if (!task) return undefined
+  task.dependencyIds = dependencyIds
+  return structuredClone(task)
+}
+
+// 업무 코드의 다음 순번을 계산해 "PREFIX-N" 형태로 하위 업무 코드를 발급한다
+export async function createSubtask(parentId: string, title: string): Promise<Task> {
+  const parent = mockTasks.find((t) => t.id === parentId)
+  if (!parent) throw new Error('상위 업무를 찾을 수 없습니다')
+
+  const prefix = parent.code.split('-')[0]
+  const maxNumber = mockTasks
+    .filter((t) => t.projectId === parent.projectId)
+    .reduce((max, t) => Math.max(max, Number(t.code.split('-')[1]) || 0), 0)
+
+  const task: Task = {
+    id: `t-${crypto.randomUUID()}`,
+    code: `${prefix}-${maxNumber + 1}`,
+    projectId: parent.projectId,
+    title,
+    status: 'todo',
+    priority: 'medium',
+    assigneeIds: [],
+    watcherIds: [],
+    parentId: parent.id,
+    dependencyIds: [],
+    tagIds: [],
+    startDate: parent.startDate,
+    endDate: parent.endDate,
+    progress: 0,
+    isPrivate: false,
+    commentCount: 0,
+  }
+  mockTasks.push(task)
+  return structuredClone(task)
+}
+
+// ── 댓글 ──────────────────────────────────────────────────
+
+export async function fetchCommentsByTaskId(taskId: string): Promise<Comment[]> {
+  return structuredClone(getCommentsByTask(taskId))
+}
+
+export async function addComment(
+  taskId: string,
+  body: string,
+  mentionUserIds: string[],
+): Promise<Comment> {
+  const comment: Comment = {
+    id: `c-${crypto.randomUUID()}`,
+    taskId,
+    authorId: CURRENT_USER_ID,
+    body,
+    mentionUserIds,
+    createdAt: new Date().toISOString(),
+  }
+  mockComments.push(comment)
+  const task = mockTasks.find((t) => t.id === taskId)
+  if (task) task.commentCount += 1
+  return structuredClone(comment)
 }
 
 // ── 메신저 ────────────────────────────────────────────────

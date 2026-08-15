@@ -14,3 +14,12 @@ export function formatDueLabel(endDate: string, isDone: boolean): { label: strin
   const urgent = !isDone && diffDays <= 1
   return { label, urgent }
 }
+
+// 댓글 등록 시각 표시용 포맷 — 오늘이면 시:분만, 그 외엔 "M월 D일 시:분"
+export function formatCommentTime(iso: string): string {
+  const date = new Date(iso)
+  const today = new Date()
+  const time = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  const isToday = date.toDateString() === today.toDateString()
+  return isToday ? `오늘 ${time}` : `${date.getMonth() + 1}월 ${date.getDate()}일 ${time}`
+}

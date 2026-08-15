@@ -68,6 +68,15 @@ export interface Task {
   commentCount: number
 }
 
+export interface Comment {
+  id: string
+  taskId: string
+  authorId: string
+  body: string
+  mentionUserIds: string[]
+  createdAt: string // ISO datetime
+}
+
 export interface Channel {
   id: string
   projectId: string
