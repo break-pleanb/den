@@ -46,3 +46,22 @@ export function formatCommentTime(iso: string): string {
   const isToday = date.toDateString() === today.toDateString()
   return isToday ? `오늘 ${time}` : `${date.getMonth() + 1}월 ${date.getDate()}일 ${time}`
 }
+
+// 메신저 메시지 시각 표시용 — 시:분만 (12시간제, 오전/오후)
+export function formatMessageTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+}
+
+const WEEKDAY_KR = ['일', '월', '화', '수', '목', '금', '토']
+
+// 메신저 메시지 목록의 날짜 구분선 — "오늘" / "어제" / "M월 D일 (요일)"
+export function formatDayDivider(iso: string): string {
+  const date = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+
+  if (date.toDateString() === today.toDateString()) return '오늘'
+  if (date.toDateString() === yesterday.toDateString()) return '어제'
+  return `${date.getMonth() + 1}월 ${date.getDate()}일 (${WEEKDAY_KR[date.getDay()]})`
+}

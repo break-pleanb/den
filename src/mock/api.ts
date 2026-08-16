@@ -1,8 +1,9 @@
 // 목업 API 함수 — 백엔드 없이 @tanstack/vue-query가 호출하는 진입점.
 // 나중에 axios 기반 실제 API 함수로 교체될 자리 (시그니처는 최대한 유지).
 
-import { getChannelsByProject, getUnreadChannelCount } from './channels'
+import { getChannelsByProject, getUnreadChannelCount, mockChannels } from './channels'
 import { getCommentsByTask, mockComments } from './comments'
+import { getMessagesByChannel, mockMessages, pickAutoReplyBody } from './messages'
 import {
   getUnreadNotificationCount as computeUnreadNotificationCount,
   mockNotifications,
@@ -12,7 +13,7 @@ import { mockFavoriteProjectIds, mockFolders, mockProjects, getProjectByKey } fr
 import { getSubtaskCount, getTaskById, getTasksByProject, mockTasks } from './tasks'
 import { getTagsByProject } from './tags'
 import { CURRENT_USER_ID, getUserById, mockUsers } from './users'
-import type { AppNotification, Channel, Comment, Folder, MenuKey, Project, ProjectMember, Role, Tag, Task, User } from './types'
+import type { AppNotification, Channel, Comment, Folder, MenuKey, Message, Project, ProjectMember, Role, Tag, Task, User } from './types'
 
 // ── 프로젝트 / 폴더 / 즐겨찾기 ──────────────────────────────
 
@@ -318,6 +319,77 @@ export async function fetchUnreadChannelCount(projectKey: string): Promise<numbe
   const project = getProjectByKey(projectKey)
   if (!project) return 0
   return getUnreadChannelCount(project.id)
+}
+
+export async function fetchMessagesByChannelId(channelId: string): Promise<Message[]> {
+  return structuredClone(getMessagesByChannel(channelId))
+}
+
+export async function sendMessage(
+  channelId: string,
+  body: string,
+  mentionUserIds: string[],
+): Promise<Message> {
+  const message: Message = {
+    id: `m-${crypto.randomUUID()}`,
+    channelId,
+    authorId: CURRENT_USER_ID,
+    body,
+    mentionUserIds,
+    createdAt: new Date().toISOString(),
+  }
+  mockMessages.push(message)
+  return structuredClone(message)
+}
+
+// 현재 보고 있는 채널을 읽음 처리 — 안읽음 배지가 사이드바·컨텍스트바에서 즉시 사라진다
+export async function markChannelRead(channelId: string): Promise<void> {
+  const channel = mockChannels.find((c) => c.id === channelId)
+  if (channel) channel.unreadCount = 0
+}
+
+// 방금 보낸 메시지에 대한 응답을 특정 발신자 명의로 채널에 추가한다 (실시간 시뮬레이션용)
+export async function addAutoReply(channelId: string, authorId: string): Promise<Message> {
+  const message: Message = {
+    id: `m-${crypto.randomUUID()}`,
+    channelId,
+    authorId,
+    body: pickAutoReplyBody(),
+    mentionUserIds: [],
+    createdAt: new Date().toISOString(),
+  }
+  mockMessages.push(message)
+  return structuredClone(message)
+}
+
+// 열려있지 않은 다른 채널에 누군가 메시지를 보낸 것처럼 시뮬레이션한다 (실시간 시뮬레이션용).
+// activeChannelId는 시뮬레이션 대상에서 제외해 지금 보고 있는 채널의 안읽음 수는 건드리지 않는다
+export async function simulateBackgroundActivity(
+  projectKey: string,
+  activeChannelId?: string,
+): Promise<Message | null> {
+  const project = getProjectByKey(projectKey)
+  if (!project) return null
+  const candidates = getChannelsByProject(project.id).filter((c) => c.id !== activeChannelId)
+  if (!candidates.length) return null
+
+  const channel = candidates[Math.floor(Math.random() * candidates.length)]
+  const others = channel.memberIds.filter((id) => id !== CURRENT_USER_ID)
+  if (!others.length) return null
+  const authorId = others[Math.floor(Math.random() * others.length)]
+
+  const message: Message = {
+    id: `m-${crypto.randomUUID()}`,
+    channelId: channel.id,
+    authorId,
+    body: pickAutoReplyBody(),
+    mentionUserIds: [],
+    createdAt: new Date().toISOString(),
+  }
+  mockMessages.push(message)
+  const target = mockChannels.find((c) => c.id === channel.id)
+  if (target) target.unreadCount += 1
+  return structuredClone(message)
 }
 
 // ── 알림 ──────────────────────────────────────────────────

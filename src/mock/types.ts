@@ -92,6 +92,7 @@ export interface Message {
   channelId: string
   authorId: string
   body: string
+  mentionUserIds: string[]
   createdAt: string // ISO datetime
 }
 

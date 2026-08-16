@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { useTemplateRef } from 'vue'
 import { Send } from '@lucide/vue'
 import { formatCommentTime } from '@/lib/date'
+import { splitMentionText, useMentionInput } from '@/lib/mentions'
 import type { Comment, User } from '@/mock/types'
 
 const props = defineProps<{
@@ -11,73 +12,21 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ submit: [{ body: string; mentionUserIds: string[] }] }>()
 
-const draft = ref('')
-const textareaRef = ref<HTMLTextAreaElement>()
-const mentionActive = ref(false)
-const mentionQuery = ref('')
-const pickedMentions = ref(new Map<string, string>()) // 멘션한 이름 -> userId
-
-const mentionCandidates = computed(() => {
-  const q = mentionQuery.value.toLowerCase()
-  return props.mentionOptions.filter((u) => u.name.toLowerCase().includes(q)).slice(0, 6)
-})
-
-// @ 뒤에 이어지는 검색어를 추출해 멘션 후보 목록을 띄운다
-function activeMentionMatch() {
-  const el = textareaRef.value
-  if (!el) return null
-  const cursor = el.selectionStart ?? draft.value.length
-  const upToCursor = draft.value.slice(0, cursor)
-  const match = /(?:^|\s)@([^\s@]*)$/.exec(upToCursor)
-  return match ? { match, cursor } : null
-}
-
-function onInput() {
-  const found = activeMentionMatch()
-  mentionActive.value = !!found
-  mentionQuery.value = found?.match[1] ?? ''
-}
-
-function pickMention(user: User) {
-  const found = activeMentionMatch()
-  const el = textareaRef.value
-  if (!found || !el) return
-  const { match, cursor } = found
-  const start = match.index + (match[0].startsWith(' ') ? 1 : 0)
-  const before = draft.value.slice(0, start)
-  const after = draft.value.slice(cursor)
-  const inserted = `@${user.name} `
-  draft.value = `${before}${inserted}${after}`
-  pickedMentions.value.set(user.name, user.id)
-  mentionActive.value = false
-  nextTick(() => {
-    const pos = before.length + inserted.length
-    el.focus()
-    el.setSelectionRange(pos, pos)
-  })
-}
+const textareaRef = useTemplateRef<HTMLTextAreaElement>('textareaRef')
+const { draft, mentionActive, mentionCandidates, onInput, pickMention, consumeMentionIds, reset } = useMentionInput(
+  () => props.mentionOptions,
+  textareaRef,
+)
 
 function submit() {
   const body = draft.value.trim()
   if (!body) return
-  const mentionUserIds = [...pickedMentions.value.entries()]
-    .filter(([name]) => body.includes(`@${name}`))
-    .map(([, id]) => id)
-  emit('submit', { body, mentionUserIds })
-  draft.value = ''
-  pickedMentions.value = new Map()
-  mentionActive.value = false
+  emit('submit', { body, mentionUserIds: consumeMentionIds(body) })
+  reset()
 }
 
 function bodyParts(comment: Comment) {
-  const names = comment.mentionUserIds.map((id) => props.usersById[id]?.name).filter((n): n is string => !!n)
-  if (!names.length) return [{ text: comment.body, mention: false }]
-  const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  const pattern = new RegExp(`(@(?:${escaped.join('|')}))`, 'g')
-  return comment.body
-    .split(pattern)
-    .filter((part) => part.length > 0)
-    .map((part) => ({ text: part, mention: names.some((n) => part === `@${n}`) }))
+  return splitMentionText(comment.body, comment.mentionUserIds, props.usersById)
 }
 </script>
 
