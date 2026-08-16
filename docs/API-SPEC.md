@@ -39,7 +39,7 @@
 ### 0.5 이 문서에 없는 것 (목업 전용, 백엔드 구현 대상 아님)
 `src/mock/api.ts`의 `addAutoReply`, `simulateBackgroundActivity`는 실시간 메신저를
 시연하기 위한 프론트 전용 시뮬레이션이며 실제 API 대응물이 없다. 백엔드는 대신
-6.5절의 STOMP 메시지 브로드캐스트로 실시간성을 제공한다.
+8장의 STOMP 메시지 브로드캐스트로 실시간성을 제공한다.
 
 ---
 
@@ -410,7 +410,7 @@ type TaskPatch = Partial<
 ```
 **Response** `201` → [`Message`](#message)
 
-**비고**: 저장과 동시에 STOMP `/topic/channel/{channelId}`로 브로드캐스트한다 (6.5절). 채널을 지금 보고 있지 않은 멤버에게는 `channel_message` 알림도 생성한다.
+**비고**: 저장과 동시에 STOMP `/topic/channel/{channelId}`로 브로드캐스트한다 (8장). 채널을 지금 보고 있지 않은 멤버에게는 `channel_message` 알림도 생성한다.
 
 ### `POST /api/channels/{channelId}/read`
 목업 함수: `markChannelRead(channelId): Promise<void>`

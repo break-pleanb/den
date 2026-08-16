@@ -4,7 +4,7 @@
 이 문서는 지금까지 확정한 결정들의 단일 기준점(source of truth)이다.
 개발 중 판단이 헷갈릴 때 이 문서를 우선한다.
 
-최종 수정: 2026-08-16 (역할 정의 범위 절충안 추가 — 5.5)
+최종 수정: 2026-08-17 (프론트엔드 8단계 완료 — 1.4, REST 엔드포인트는 API-SPEC.md로 이관 — 6.1, 컴포넌트 트리 갱신 — 7.3)
 
 ---
 
@@ -72,6 +72,10 @@
 화면 단위로 끊어 하나씩 완성. 각 화면에 딸린 모달·인라인 조각을 함께 구현.
 권장 순서: 공통 토대 → 전체 프로젝트 홈 → 업무 리스트 → 업무 상세 →
 간트 → 권한·멤버 → 메신저 → 알림
+
+**진행 상태 (2026-08-17)**: 위 8단계 **전부 완료**. 목업 데이터만으로 전체 화면과
+흐름이 실제로 동작하는 프론트엔드 완주 — 1.3절 원칙대로 프론트를 먼저 끝냈다.
+현재 위치는 **백엔드 구현 시작 직전**. API 계약은 `docs/API-SPEC.md` 참고.
 
 ---
 
@@ -196,11 +200,11 @@ NOTIFICATION       통합 알림 (type, source_id, is_read)
 ### 4.3 URL 우선 원칙 (중요)
 필터·뷰·그룹핑·페이지네이션 등 "뒤로가기로 복원돼야 하는 상태"는 컴포넌트
 상태(`ref`)가 아니라 **URL 쿼리스트링**에 둔다. Vue Router `route.query`로 관리.
+→ 뒤로가기·북마크·새로고침이 HTML처럼 동작. (사용자가 겪던 SPA 답답함의 해결책)
 
 > 이 원칙을 어기면(페이지 번호를 `ref`에만 두면) 뒤로가기 시 1페이지로 리셋되는
 > 문제가 발생한다. 이는 React·Vue 공통 현상이며 프레임워크가 아니라 **프로젝트
 > 규칙**으로 강제해야 한다. 기여자 온보딩 시 반드시 전달할 것.
-→ 뒤로가기·북마크·새로고침이 HTML처럼 동작. (사용자가 겪던 SPA 답답함의 해결책)
 
 상태 배치 규칙:
 - 서버 데이터 → TanStack Query
@@ -276,64 +280,7 @@ NOTIFICATION       통합 알림 (type, source_id, is_read)
 ## 6. API 설계
 
 ### 6.1 REST 엔드포인트
-```
-[인증]
-POST   /api/auth/login
-POST   /api/auth/refresh
-GET    /api/auth/me
-
-[프로젝트]
-GET    /api/projects                  내가 속한 프로젝트 (폴더 그룹 + 즐겨찾기 플래그)
-POST   /api/projects
-GET    /api/projects/{id}             내 역할·접근가능 메뉴 포함
-PATCH  /api/projects/{id}             (관리자)
-DELETE /api/projects/{id}             (관리자)
-
-[개인 폴더·즐겨찾기]
-GET    /api/folders                   내 폴더 목록
-POST   /api/folders
-PATCH  /api/folders/{id}              이름·순서
-DELETE /api/folders/{id}              (내부 프로젝트는 미분류로)
-PATCH  /api/projects/{id}/placement   프로젝트를 폴더로 배치/이동 (내 화면만)
-POST   /api/projects/{id}/favorite    즐겨찾기 토글
-
-[멤버·역할]
-GET    /api/projects/{id}/members
-POST   /api/projects/{id}/members     초대(역할 지정)
-PATCH  /api/projects/{id}/members/{userId}
-DELETE /api/projects/{id}/members/{userId}
-GET    /api/projects/{id}/roles
-POST   /api/projects/{id}/roles
-PATCH  /api/projects/{id}/roles/{roleId}   역할·메뉴권한 수정
-
-[업무]
-GET    /api/projects/{id}/tasks       ?status=&assignee=&priority=&tag=&group=&view=
-                                       (비공개 업무는 서버가 필터링)
-POST   /api/projects/{id}/tasks
-GET    /api/tasks/{taskId}            하위업무·의존성·담당자·태그 포함
-PATCH  /api/tasks/{taskId}
-DELETE /api/tasks/{taskId}
-PATCH  /api/tasks/{taskId}/assignees      담당자 다대다
-PATCH  /api/tasks/{taskId}/dependencies   의존성 (간트)
-PATCH  /api/tasks/{taskId}/order          순서/부모 변경
-
-[댓글·태그]
-GET    /api/tasks/{taskId}/comments
-POST   /api/tasks/{taskId}/comments       멘션 포함
-GET    /api/projects/{id}/tags
-POST   /api/projects/{id}/tags
-
-[메신저]
-GET    /api/projects/{id}/channels        안읽음 수 포함
-POST   /api/projects/{id}/channels
-GET    /api/channels/{channelId}/messages ?before=&limit=
-POST   /api/channels/{channelId}/read     읽음 처리
-
-[알림]
-GET    /api/notifications ?unread=
-POST   /api/notifications/{id}/read
-POST   /api/notifications/read-all
-```
+REST 엔드포인트 상세(요청·응답 형태, 관련 타입, 백엔드 전환 시 프론트 변경 항목 포함)는 `docs/API-SPEC.md` 참조. 이 문서에 별도로 목록을 두지 않는 이유: 엔드포인트가 바뀔 때마다 두 문서를 동시에 고쳐야 해서 어긋나기 쉽다 — API-SPEC.md를 단일 기준점으로 둔다.
 
 ### 6.2 WebSocket (STOMP)
 ```
@@ -392,20 +339,25 @@ POST   /api/notifications/read-all
 
 ### 7.3 컴포넌트 트리 (요약)
 ```
-App
-├─ AuthGuard → AppLayout (Sidebar + ContextBar + Outlet)
-├─ ProjectHomePage        전체 프로젝트 (카드 그리드)
-├─ TaskListPage           리스트/간트 + 상세 패널
-│   ├─ TaskToolbar (URL 쿼리 동기화)
-│   ├─ TaskListView / TaskGanttView
-│   └─ TaskDetailPanel (담당자·의존성·하위업무·댓글)
-├─ MessengerPage          채널목록 + 채팅(STOMP)
-├─ SettingsPage           MembersPanel / RolesPanel
-└─ NotificationsPage
+App.vue                        <router-view /> + ConfirmDialogHost (전역 확인 다이얼로그)
+├─ LoginPage                   /login — AppLayout 밖
+└─ AppLayout                   Sidebar + ContextBar(프로젝트 선택 시만) + <router-view>
+    ├─ ProjectsHomePage        전체 프로젝트 — 카드/목록 전환, 즐겨찾기·폴더 섹션
+    │   └─ ProjectCard / ProjectListRow
+    ├─ TaskListPage            업무 리스트·간트 (?view=list|gantt)
+    │   ├─ TaskFilterMenu, TaskRow, TaskGanttChart
+    │   └─ TaskDetailPanel     중첩 라우트 — 업무 상세 (URL 바뀜)
+    │       ├─ TaskAssigneePicker, TaskDependencySection
+    │       └─ TaskSubtaskSection, TaskCommentSection
+    ├─ MessengerPage           채널 목록 + ChatPanel
+    ├─ MembersSettingsPage / RolesSettingsPage   (SettingsTabs 공유)
+    └─ NotificationsPage
+
+공용: ProjectActionsMenu(프로젝트 옵션 메뉴), NotificationBell(ContextBar·홈 상단 알림 드롭다운)
 ```
 
-폴더 구조는 feature 기반 (src/features/{auth,projects,tasks,messenger,permissions,notifications}).
-상세는 folder-structure.txt 참조.
+폴더 구조는 feature 기반: `src/features/{auth,projects,tasks,messenger,permissions,notifications}`,
+공용은 `src/components/`(shadcn-vue는 `src/components/ui/`), 레이아웃은 `src/layouts/`.
 
 ---
 
