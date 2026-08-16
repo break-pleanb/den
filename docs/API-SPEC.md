@@ -25,7 +25,7 @@
 
 ### 0.3 응답 형식
 - 모든 응답은 별도 래퍼(`{ data: ... }` 등) 없이 **리소스를 그대로** JSON으로 반환한다 (목업 함수의 반환값과 동일).
-- 목록 조회는 배열을 그대로 반환한다 (`{ items: [...] }` 형태 아님).
+- 목록 조회는 배열을 그대로 반환한다 (`{ items: [...] }` 형태 아님). **단, 페이지네이션이 적용되는 목록은 예외로 `{ items, total, page, size }` 래퍼를 쓴다** (4장 업무 목록 참고. `total`/`page`/`size`가 필요 없는 단순 목록은 원칙대로 배열 그대로).
 - 대상이 없는 단건 조회/수정(`PATCH /tasks/{id}` 등)은 **404**를 반환한다. 목업 함수가 `T | undefined`를 반환하는 지점이 여기 해당한다.
 - 부수효과만 있고 응답 바디가 필요 없는 요청(읽음 처리 등, 목업 함수가 `void` 반환)은 **204 No Content**로 응답한다.
 - 날짜: `startDate`/`endDate`/`invitedAt`은 `YYYY-MM-DD`, 그 외 `createdAt` 등은 ISO 8601 datetime 문자열.
@@ -67,6 +67,8 @@
 ### `POST /api/auth/refresh`
 리프레시 토큰으로 액세스 토큰을 재발급한다. 설계상 자리만 예약 (목업 미구현).
 
+**MVP 방식**: 리프레시 토큰은 로테이션하지 않는다 — 재발급 요청마다 액세스 토큰만 새로 내려주고, 리프레시 토큰은 로그인 때 발급받은 것을 만료 전까지 그대로 재사용한다.
+
 **Request**
 ```ts
 { refreshToken: string }
@@ -74,9 +76,11 @@
 
 **Response** `200`
 ```ts
-{ accessToken: string; refreshToken: string }
+{ accessToken: string }
 ```
 `401` — 리프레시 토큰 만료/무효. 프론트는 이 경우 로그아웃 처리 후 `/login`으로 이동한다.
+
+> **향후 과제 (MVP 범위 밖)**: 리프레시 토큰 로테이션(재발급마다 새 리프레시 토큰도 함께 발급하고 이전 토큰은 즉시 무효화) — 탈취된 토큰의 재사용을 탐지·차단할 수 있어 보안상 더 안전하지만, 기존 토큰 무효화 처리와 동시 재발급 요청 처리(같은 리프레시 토큰으로 두 요청이 동시에 들어오는 경우) 같은 구현 복잡도가 있어 MVP 이후로 미룬다.
 
 ---
 
@@ -150,16 +154,29 @@ Record<projectId, Role | undefined>
 ```ts
 { isFavorite: boolean }   // 토글 후 상태
 ```
-> 목업 함수는 갱신된 전체 즐겨찾기 목록(`string[]`)을 반환하지만, 실제 백엔드는 이 단건 토글 결과만 반환한다. 즐겨찾기 개수가 늘어도 매 토글마다 전체 목록을 다시 내려받을 필요가 없도록 하기 위함. 프론트는 토글 성공 시 로컬에 들고 있는 즐겨찾기 목록에서 해당 `projectId`를 직접 추가/제거하거나, `GET /api/favorites` 쿼리를 무효화(invalidate)해서 갱신한다.
+> 목업 함수는 갱신된 전체 즐겨찾기 목록(`string[]`)을 반환하지만, 실제 백엔드는 매 토글마다 전체 목록을 다시 내려받지 않도록 이 단건 결과만 반환한다 → 10장 참고.
 
 ---
 
 ## 3. 사용자 / 멤버 / 권한
 
-### `GET /api/users`
-목업 함수: `fetchUsers(): Promise<User[]>` — 전체 사용자 (멘션·담당자 선택용).
+### `GET /api/projects/{projectKey}/users`
+목업 함수 대응 없음 (목업의 `fetchUsers()`를 프로젝트 범위로 좁힌 엔드포인트).
+멘션 대상·담당자 후보 선택용 — 이 프로젝트 멤버만 반환한다. 댓글 멘션, 담당자 지정, 메신저 멘션 등 "이 프로젝트 안에서 사람을 고르는" 화면은 모두 이 엔드포인트를 쓴다.
 
 **Response** `200` → [`User`](#user)`[]`
+
+### `GET /api/users?q=`
+전체 사용자 검색. 아직 이 프로젝트 멤버가 아닌 "기존 계정"을 찾아야 하는 멤버 초대 화면에서만 쓴다 (3장 멤버 초대 참고) — 멘션·담당자 선택에는 쓰지 않는다.
+
+**Query Parameters**
+```ts
+{ q: string }   // 이름 또는 이메일 부분일치
+```
+
+**Response** `200` → [`User`](#user)`[]`
+
+> **목업과의 차이**: 목업 함수 `fetchUsers()`는 전체 사용자를 반환하고, 프론트는 이 하나의 결과를 멘션·담당자 선택과 멤버 초대 검색 양쪽에 그대로 재사용한다. 실제로는 멘션·담당자 선택 범위가 프로젝트 멤버로 좁아져야 하므로 위 두 엔드포인트로 분리했다 → 10장 참고.
 
 ### `GET /api/projects/{projectKey}/roles`
 목업 함수: `fetchRolesByProjectKey(projectKey): Promise<Role[]>`
@@ -201,7 +218,7 @@ Record<'tasks' | 'gantt' | 'messenger', boolean>
 
 `404` — 존재하지 않는 `userId`. `409` — 이미 해당 프로젝트 멤버.
 
-> **목업과의 차이**: 목업 함수 `inviteProjectMember(projectKey, name, email, roleId)`는 이름·이메일을 입력받아 그 자리에서 신규 `User`를 만들고 프로젝트에 등록하는 것처럼 동작한다. 이는 화면을 빨리 채우기 위한 목업 단계의 단순화일 뿐, 실제 계약이 아니다. 백엔드 연동 시 초대 UI도 "이름/이메일 입력" 폼이 아니라 `GET /api/users`(또는 이메일 검색용 엔드포인트)로 **기존 사용자를 검색·선택**해 `userId`를 넘기는 방식으로 바꿔야 한다.
+> **목업과의 차이**: 목업 함수 `inviteProjectMember(projectKey, name, email, roleId)`는 이름·이메일을 입력받아 그 자리에서 신규 `User`를 만드는 것처럼 동작한다 → 10장 참고.
 
 ### `PATCH /api/projects/{projectKey}/members/{userId}`
 목업 함수: `updateProjectMemberRole(projectKey, userId, roleId): Promise<void>`
@@ -254,19 +271,19 @@ Record<'tasks' | 'gantt' | 'messenger', boolean>
 }
 ```
 
-> **목업 단계와의 차이**: 목업 함수(`fetchTasksByProjectKey`)는 프로젝트의 전체 업무 배열을 반환하고, 필터·검색·페이지네이션은 `TaskListPage.vue`가 `route.query`를 읽어 **클라이언트에서** 처리한다. 이는 목업 단계의 한계이며, 백엔드 구현 시점에는 위 쿼리 파라미터로 **서버 필터링·페이지네이션**을 정식 계약으로 삼는다. 프론트도 이때 `route.query`를 그대로 쿼리스트링으로 전달하고 `{ items, total, page, size }` 응답을 소비하도록 함께 변경한다.
+> **목업 단계와의 차이**: 목업 함수(`fetchTasksByProjectKey`)는 프로젝트의 전체 업무 배열을 반환하고, 필터·검색·페이지네이션은 `TaskListPage.vue`가 `route.query`를 읽어 **클라이언트에서** 처리한다 → 10장 참고.
 > `group`(그룹핑)·`view`(리스트/간트)는 응답에 포함될 데이터 자체를 바꾸지 않는 화면 전용 상태이므로 쿼리 파라미터로 보내지 않는다 — URL에는 남지만(URL 우선 원칙) 서버 계약과는 무관하다.
 
-### `GET /api/projects/stats`
+### `GET /api/me/project-stats`
 목업 함수 대응 없음 (목업의 `fetchAllTasks(): Promise<Task[]>`을 대체하는 집계 엔드포인트).
-전체 프로젝트 홈의 카드별 진행 현황 계산용 — 요청자가 접근 가능한 **모든 프로젝트**의 업무를 프로젝트별로 집계해 반환한다.
+전체 프로젝트 홈의 카드별 진행 현황 계산용 — 요청자가 접근 가능한 **모든 프로젝트**의 업무를 프로젝트별로 집계해 반환한다. `/me` 네임스페이스를 쓰는 이유: `/api/projects/{projectKey}` 단건 조회 경로와 겹치지 않도록, 그리고 "요청자 기준" 집계임을 경로에서 드러내기 위해.
 
 **Response** `200`
 ```ts
 { projectId: string; total: number; todo: number; progress: number; review: number; done: number }[]
 ```
 
-> 목업 함수는 전체 프로젝트의 업무 원본을 통째로 내려받아 프론트에서 `statsOf(project)`로 집계한다. 프로젝트가 50~100개 규모면 이 방식은 매 홈 화면 진입마다 불필요하게 큰 페이로드를 전송하게 되므로, 백엔드는 집계된 숫자만 반환하는 이 엔드포인트로 대체한다. 업무 원문이 필요한 화면(업무 리스트·상세)은 위 `GET /api/projects/{projectKey}/tasks`, `GET /api/tasks/{taskId}`로 별도 조회한다.
+> 목업 함수는 전체 프로젝트의 업무 원본을 통째로 내려받아 프론트에서 `statsOf(project)`로 집계한다. 프로젝트가 50~100개 규모면 매 홈 화면 진입마다 불필요하게 큰 페이로드를 전송하게 되므로 집계된 숫자만 반환하는 이 엔드포인트로 대체한다 → 10장 참고. 업무 원문이 필요한 화면(업무 리스트·상세)은 위 `GET /api/projects/{projectKey}/tasks`, `GET /api/tasks/{taskId}`로 별도 조회한다.
 
 ### `GET /api/me/task-count`
 목업 함수: `fetchMyTaskCount(): Promise<number>`
@@ -382,7 +399,7 @@ type TaskPatch = Partial<
 
 **Response** `200` → [`Message`](#message)`[]`
 
-> `DEN-DESIGN.md` 6.1절에는 `?before=&limit=` 커서 페이지네이션이 예약되어 있다. 목업은 채널의 전체 메시지를 반환하므로, 메시지 양이 많아지면 서버 구현 시 커서 기반 페이지네이션을 추가하고 프론트도 무한 스크롤로 맞춰 변경한다.
+> `DEN-DESIGN.md` 6.1절에는 `?before=&limit=` 커서 페이지네이션이 예약되어 있다. 목업은 채널의 전체 메시지를 반환한다 → 10장 참고.
 
 ### `POST /api/channels/{channelId}/messages`
 목업 함수: `sendMessage(channelId, body, mentionUserIds): Promise<Message>`
@@ -610,3 +627,20 @@ interface AppNotification {
   createdAt: string   // ISO datetime
 }
 ```
+
+---
+
+## 10. 백엔드 전환 시 프론트가 함께 고쳐야 할 것
+
+목업 함수를 실제 axios 호출로 바꾸는 것만으로 끝나지 않고, **호출부의 동작 자체를 같이
+고쳐야 하는 항목**만 모았다. 각 장에는 "→ 10장 참고"로만 짧게 표시해뒀으니, 백엔드
+연동 작업을 시작할 때 이 표를 체크리스트로 쓴다.
+
+| 영역 | 목업(현재) | 백엔드 전환 후 | 관련 엔드포인트 | 관련 프론트 코드 |
+|---|---|---|---|---|
+| 업무 목록 | 프로젝트의 전체 업무를 받아 `route.query` 기준으로 필터·검색·페이지네이션을 **클라이언트에서** 계산 | 쿼리 파라미터(`status`/`assignee`/`priority`/`tag`/`q`/`page`/`size`)로 **서버에 위임**, 응답을 `{ items, total, page, size }`로 소비 | 4장 `GET /projects/{projectKey}/tasks` | `TaskListPage.vue`의 필터링·페이지네이션 로직 |
+| 즐겨찾기 | 토글 응답으로 **갱신된 즐겨찾기 전체 목록**(`string[]`)을 받아 그대로 치환 | 토글 응답은 `{ isFavorite }` 단건뿐 — 로컬 목록에서 직접 추가/제거하거나 `GET /api/favorites` 캐시를 무효화 | 2장 `POST /projects/{projectKey}/favorite` | 즐겨찾기 토글을 호출하는 화면들(`ProjectsHomePage.vue`, `Sidebar.vue` 등) |
+| 멤버 초대 | 이름·이메일을 입력받아 그 자리에서 **신규 계정 생성**, 응답으로 생성된 `User`를 받아 멤버 목록에 반영 | 계정은 생성하지 않음 — `GET /api/users?q=`로 **기존 사용자를 검색·선택**해 `userId`를 전달. **응답 타입도 `User` → `ProjectMember`로 바뀜** — 초대 후 목록 갱신 로직이 응답에서 `User` 필드(`name`/`email`/`avatarGradient` 등)를 직접 쓰고 있다면, `ProjectMember`(`userId`/`roleId`/`invitedAt`)로는 바로 대체가 안 되므로 이미 알고 있는 선택된 `User` 객체와 조합하거나 멤버 목록을 다시 조회(invalidate)하도록 고쳐야 한다 | 3장 `POST /projects/{projectKey}/members`, `GET /api/users?q=` | `MembersSettingsPage.vue`의 초대 폼 + 초대 성공 후 목록 갱신 로직 |
+| 멘션·담당자 선택 | `fetchUsers()`로 **전체 사용자** 목록을 받아 멘션·담당자 후보로 그대로 사용 | 프로젝트 멤버로 범위가 좁아진 `GET /api/projects/{projectKey}/users`로 교체 | 3장 `GET /api/projects/{projectKey}/users` | 담당자 피커, 댓글·메시지 멘션 입력 컴포넌트 |
+| 전체 프로젝트 홈 통계 | `fetchAllTasks()`로 **전체 프로젝트의 업무 원본**을 받아 카드별로 `statsOf()` 클라이언트 집계 | 집계된 숫자만 받는 `GET /api/me/project-stats`로 교체 — 클라이언트 집계 로직 제거 | 4장 `GET /api/me/project-stats` | `ProjectsHomePage.vue`의 `fetchAllTasks`/`statsOf()` |
+| 메신저 메시지 | 채널의 **전체 메시지**를 한 번에 로드 | `?before=&limit=` 커서 기반 페이지네이션 + 무한 스크롤로 변경 (추후 — 메시지 양이 실제로 문제될 때 진행) | 6장 `GET /channels/{channelId}/messages` | `MessengerPage.vue`, `ChatPanel.vue` |
