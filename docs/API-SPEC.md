@@ -55,7 +55,7 @@
 
 **Response** `200`
 ```ts
-{ accessToken: string; user: User }
+{ accessToken: string; refreshToken: string; user: User }
 ```
 `401` — 이메일/비밀번호 불일치.
 
@@ -65,7 +65,18 @@
 **Response** `200` → [`User`](#user)
 
 ### `POST /api/auth/refresh`
-설계상 자리만 예약 (목업 미구현). 리프레시 토큰으로 액세스 토큰 재발급.
+리프레시 토큰으로 액세스 토큰을 재발급한다. 설계상 자리만 예약 (목업 미구현).
+
+**Request**
+```ts
+{ refreshToken: string }
+```
+
+**Response** `200`
+```ts
+{ accessToken: string; refreshToken: string }
+```
+`401` — 리프레시 토큰 만료/무효. 프론트는 이 경우 로그아웃 처리 후 `/login`으로 이동한다.
 
 ---
 
@@ -119,12 +130,10 @@ Record<projectId, Role | undefined>
 
 #### `PATCH /api/projects/{projectKey}/placement`
 목업 함수: `moveProjectToFolder(projectId: string, folderId: string | null): Promise<Project | undefined>`
-프로젝트를 내 화면에서 다른 폴더로 이동 (개인용 배치이므로 요청자 본인에게만 영향).
+프로젝트를 내 화면에서 다른 폴더로 이동 (개인용 배치이므로 요청자 본인에게만 영향). 식별자는 다른 프로젝트 하위 엔드포인트와 통일해 `projectKey`를 쓴다 (0.2절).
 
 **Request** `{ folderId: string | null }` (`null` = 미분류로 이동)
 **Response** `200` → [`Project`](#project) / `404`
-
-> 목업 함수는 `projectId`(내부 ID)를 받지만, 프론트 라우팅 관례상 이 엔드포인트는 `{projectKey}`로 통일해도 무방하다 — 실제 구현 시 택1.
 
 ### 즐겨찾기
 
@@ -137,7 +146,11 @@ Record<projectId, Role | undefined>
 목업 함수: `toggleFavoriteProject(projectId: string): Promise<string[]>`
 토글(있으면 해제, 없으면 추가).
 
-**Response** `200` → `string[]` (**갱신된 전체 즐겨찾기 `projectId` 목록**을 반환 — 성공 여부만 응답하는 게 아님에 주의)
+**Response** `200`
+```ts
+{ isFavorite: boolean }   // 토글 후 상태
+```
+> 목업 함수는 갱신된 전체 즐겨찾기 목록(`string[]`)을 반환하지만, 실제 백엔드는 이 단건 토글 결과만 반환한다. 즐겨찾기 개수가 늘어도 매 토글마다 전체 목록을 다시 내려받을 필요가 없도록 하기 위함. 프론트는 토글 성공 시 로컬에 들고 있는 즐겨찾기 목록에서 해당 `projectId`를 직접 추가/제거하거나, `GET /api/favorites` 쿼리를 무효화(invalidate)해서 갱신한다.
 
 ---
 
@@ -177,17 +190,18 @@ Record<'tasks' | 'gantt' | 'messenger', boolean>
 ```
 
 ### `POST /api/projects/{projectKey}/members`
-목업 함수: `inviteProjectMember(projectKey, name, email, roleId): Promise<User>`
-멤버 초대. 사용자가 처음 초대되면 신규 계정도 함께 생성(목업 동작 기준).
+기존 계정을 가진 사용자를 프로젝트 멤버로 초대한다. **초대 과정에서 신규 계정을 생성하지 않는다** — 사내 솔루션이므로 계정 발급·비밀번호 설정은 이 API 밖의 별도 계정 관리 절차(관리자 도구, SSO 프로비저닝 등)에서 이루어진다. 초대는 "이미 존재하는 계정"과 "프로젝트+역할"을 연결하는 동작으로 한정한다.
 
 **Request**
 ```ts
-{ name: string; email: string; roleId: string }
+{ userId: string; roleId: string }
 ```
 
-**Response** `201` → [`User`](#user)
+**Response** `201` → [`ProjectMember`](#projectmember)
 
-**비고**: 서버는 초대와 동시에 `ProjectMember` 레코드도 생성한다 (`roleId`, `invitedAt`).
+`404` — 존재하지 않는 `userId`. `409` — 이미 해당 프로젝트 멤버.
+
+> **목업과의 차이**: 목업 함수 `inviteProjectMember(projectKey, name, email, roleId)`는 이름·이메일을 입력받아 그 자리에서 신규 `User`를 만들고 프로젝트에 등록하는 것처럼 동작한다. 이는 화면을 빨리 채우기 위한 목업 단계의 단순화일 뿐, 실제 계약이 아니다. 백엔드 연동 시 초대 UI도 "이름/이메일 입력" 폼이 아니라 `GET /api/users`(또는 이메일 검색용 엔드포인트)로 **기존 사용자를 검색·선택**해 `userId`를 넘기는 방식으로 바꿔야 한다.
 
 ### `PATCH /api/projects/{projectKey}/members/{userId}`
 목업 함수: `updateProjectMemberRole(projectKey, userId, roleId): Promise<void>`
@@ -217,16 +231,42 @@ Record<'tasks' | 'gantt' | 'messenger', boolean>
 목업 함수: `fetchTasksByProjectKey(projectKey): Promise<Task[]>`
 비공개(`isPrivate`) 업무 중 요청자가 담당자/참여자가 아닌 항목은 서버가 제외하고 반환한다.
 
-**Response** `200` → [`Task`](#task)`[]`
+**Query Parameters** (전부 선택, 미지정 시 필터 없음)
+```ts
+{
+  status?: string     // 콤마 구분, TaskStatus 값들. 예: status=todo,progress
+  assignee?: string   // 콤마 구분, 담당자 userId들
+  priority?: string   // 콤마 구분, TaskPriority 값들
+  tag?: string        // 콤마 구분, tagId들
+  q?: string           // 검색어 — 제목 부분일치
+  page?: number        // 1-base, 기본 1
+  size?: number         // 페이지당 개수, 기본 20
+}
+```
 
-> **현재 프론트 계약**: 목업 단계에서는 필터(`status`/`assignee`/`priority`/`tag`)·그룹핑·검색·페이지네이션을 **전부 클라이언트에서** 응답 전체에 대해 처리한다 (`TaskListPage.vue`가 `route.query`로 계산). 즉 현재 이 엔드포인트는 쿼리 파라미터를 받지 않는다.
-> 프로젝트당 업무 수가 커지면 `DEN-DESIGN.md` 6.1절에 예약된 `?status=&assignee=&priority=&tag=&group=&view=` 쿼리 파라미터를 서버 필터링으로 구현하는 것을 권장한다 — 이 경우 프론트도 함께 맞춰 변경 필요.
+**Response** `200`
+```ts
+{
+  items: Task[]
+  total: number   // 필터 적용 후 전체 개수 (페이지네이션 계산용)
+  page: number
+  size: number
+}
+```
 
-### `GET /api/tasks?scope=all`
-목업 함수: `fetchAllTasks(): Promise<Task[]>`
-전체 프로젝트 홈의 카드별 진행률 통계 계산용 — 요청자가 접근 가능한 **모든 프로젝트**의 업무.
+> **목업 단계와의 차이**: 목업 함수(`fetchTasksByProjectKey`)는 프로젝트의 전체 업무 배열을 반환하고, 필터·검색·페이지네이션은 `TaskListPage.vue`가 `route.query`를 읽어 **클라이언트에서** 처리한다. 이는 목업 단계의 한계이며, 백엔드 구현 시점에는 위 쿼리 파라미터로 **서버 필터링·페이지네이션**을 정식 계약으로 삼는다. 프론트도 이때 `route.query`를 그대로 쿼리스트링으로 전달하고 `{ items, total, page, size }` 응답을 소비하도록 함께 변경한다.
+> `group`(그룹핑)·`view`(리스트/간트)는 응답에 포함될 데이터 자체를 바꾸지 않는 화면 전용 상태이므로 쿼리 파라미터로 보내지 않는다 — URL에는 남지만(URL 우선 원칙) 서버 계약과는 무관하다.
 
-**Response** `200` → [`Task`](#task)`[]`
+### `GET /api/projects/stats`
+목업 함수 대응 없음 (목업의 `fetchAllTasks(): Promise<Task[]>`을 대체하는 집계 엔드포인트).
+전체 프로젝트 홈의 카드별 진행 현황 계산용 — 요청자가 접근 가능한 **모든 프로젝트**의 업무를 프로젝트별로 집계해 반환한다.
+
+**Response** `200`
+```ts
+{ projectId: string; total: number; todo: number; progress: number; review: number; done: number }[]
+```
+
+> 목업 함수는 전체 프로젝트의 업무 원본을 통째로 내려받아 프론트에서 `statsOf(project)`로 집계한다. 프로젝트가 50~100개 규모면 이 방식은 매 홈 화면 진입마다 불필요하게 큰 페이로드를 전송하게 되므로, 백엔드는 집계된 숫자만 반환하는 이 엔드포인트로 대체한다. 업무 원문이 필요한 화면(업무 리스트·상세)은 위 `GET /api/projects/{projectKey}/tasks`, `GET /api/tasks/{taskId}`로 별도 조회한다.
 
 ### `GET /api/me/task-count`
 목업 함수: `fetchMyTaskCount(): Promise<number>`
