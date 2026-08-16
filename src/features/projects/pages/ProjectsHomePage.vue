@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import NotificationBell from '@/features/notifications/components/NotificationBell.vue'
 import ProjectCard from '../components/ProjectCard.vue'
 import ProjectListRow from '../components/ProjectListRow.vue'
 
@@ -184,7 +185,7 @@ async function onCreateProject() {
           {{ projects?.length ?? 0 }}개 프로젝트에 참여 중 · 즐겨찾기 {{ favoriteIds?.length ?? 0 }}개
         </div>
       </div>
-      <div class="ml-auto flex gap-2">
+      <div class="ml-auto flex items-center gap-2">
         <Button variant="outline" @click="newFolderOpen = true">
           <FolderPlus class="size-[15px]" :stroke-width="2" />
           새 폴더
@@ -193,6 +194,7 @@ async function onCreateProject() {
           <Plus class="size-[15px]" :stroke-width="2" />
           새 프로젝트
         </Button>
+        <NotificationBell />
       </div>
     </div>
 

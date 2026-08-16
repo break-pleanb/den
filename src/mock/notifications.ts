@@ -27,6 +27,17 @@ export const mockNotifications: AppNotification[] = [
   {
     id: 'n-3',
     userId: CURRENT_USER_ID,
+    type: 'task_comment',
+    title: '김민석님이 댓글을 남겼습니다',
+    body: 'APP-142 리다이렉트 URI 쪽은 제가 확인 중입니다. 이번 주 내로 공유드릴게요.',
+    projectKey: 'APP',
+    linkTaskId: 't-app-142',
+    isRead: false,
+    createdAt: '2026-08-14T18:05:00+09:00',
+  },
+  {
+    id: 'n-4',
+    userId: CURRENT_USER_ID,
     type: 'task_status_changed',
     title: '김민석님이 상태를 변경했습니다',
     body: 'BACKEND-12 DB 파티셔닝 설계 → 진행 중',
@@ -36,7 +47,7 @@ export const mockNotifications: AppNotification[] = [
     createdAt: '2026-08-14T17:41:00+09:00',
   },
   {
-    id: 'n-4',
+    id: 'n-5',
     userId: CURRENT_USER_ID,
     type: 'task_assigned',
     title: '검토 요청이 도착했습니다',
@@ -47,7 +58,7 @@ export const mockNotifications: AppNotification[] = [
     createdAt: '2026-08-14T15:12:00+09:00',
   },
   {
-    id: 'n-5',
+    id: 'n-6',
     userId: CURRENT_USER_ID,
     type: 'task_assigned',
     title: '담당자로 지정되었습니다',
@@ -58,7 +69,7 @@ export const mockNotifications: AppNotification[] = [
     createdAt: '2026-08-12T11:05:00+09:00',
   },
   {
-    id: 'n-6',
+    id: 'n-7',
     userId: CURRENT_USER_ID,
     type: 'channel_message',
     title: '#일반 채널에 새 메시지',
@@ -69,7 +80,7 @@ export const mockNotifications: AppNotification[] = [
     createdAt: '2026-08-11T14:30:00+09:00',
   },
   {
-    id: 'n-7',
+    id: 'n-8',
     userId: CURRENT_USER_ID,
     type: 'project_invited',
     title: 'Erta-SIM 보안인증 프로젝트에 초대되었습니다',
@@ -81,5 +92,5 @@ export const mockNotifications: AppNotification[] = [
 ]
 
 export function getUnreadNotificationCount(): number {
-  return mockNotifications.filter((n) => !n.isRead).length
+  return mockNotifications.filter((n) => n.userId === CURRENT_USER_ID && !n.isRead).length
 }

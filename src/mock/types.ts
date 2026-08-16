@@ -99,6 +99,7 @@ export interface Message {
 export type NotificationType =
   | 'task_mention'
   | 'task_assigned'
+  | 'task_comment'
   | 'task_due_soon'
   | 'task_status_changed'
   | 'channel_message'

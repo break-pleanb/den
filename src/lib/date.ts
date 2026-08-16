@@ -54,6 +54,21 @@ export function formatMessageTime(iso: string): string {
 
 const WEEKDAY_KR = ['일', '월', '화', '수', '목', '금', '토']
 
+// 알림 목록 시각 표시용 — "방금" / "N분 전" / "N시간 전" / "N일 전" / "M월 D일"
+export function formatRelativeTime(iso: string): string {
+  const date = new Date(iso)
+  const diffMs = Date.now() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60_000)
+
+  if (diffMin < 1) return '방금'
+  if (diffMin < 60) return `${diffMin}분 전`
+  const diffHour = Math.floor(diffMin / 60)
+  if (diffHour < 24) return `${diffHour}시간 전`
+  const diffDay = Math.floor(diffHour / 24)
+  if (diffDay < 7) return `${diffDay}일 전`
+  return `${date.getMonth() + 1}월 ${date.getDate()}일`
+}
+
 // 메신저 메시지 목록의 날짜 구분선 — "오늘" / "어제" / "M월 D일 (요일)"
 export function formatDayDivider(iso: string): string {
   const date = new Date(iso)

@@ -3,17 +3,16 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { useQuery } from '@tanstack/vue-query'
-import { Bell, ChartGantt, ListChecks, MessageSquare, Search, Settings } from '@lucide/vue'
+import { ChartGantt, ListChecks, MessageSquare, Search, Settings } from '@lucide/vue'
 import {
   fetchMenuPermissions,
   fetchProjectByKey,
   fetchUnreadChannelCount,
 } from '@/mock/api'
-import { useNotificationStore } from '@/stores/notifications'
+import NotificationBell from '@/features/notifications/components/NotificationBell.vue'
 
 const route = useRoute()
 const router = useRouter()
-const notificationStore = useNotificationStore()
 
 // 입력창은 로컬 ref로 즉시 반응하고, URL 반영은 디바운스 후 router.push로 커밋한다.
 // 매 타이핑마다 push하면 뒤로가기 히스토리가 글자 수만큼 쌓이므로, 입력이 잠시 멈췄을 때만
@@ -129,16 +128,7 @@ const isSettingsTab = computed(() => route.name === 'settings-members' || route.
           @input="onTaskSearchInput"
         />
       </div>
-      <router-link
-        :to="{ name: 'notifications' }"
-        class="relative grid size-[34px] place-items-center rounded-[9px] text-muted-foreground hover:bg-background hover:text-foreground"
-      >
-        <Bell class="size-[18px]" :stroke-width="1.9" />
-        <span
-          v-if="notificationStore.unreadCount > 0"
-          class="absolute top-[7px] right-2 size-[7px] rounded-full border-2 border-card bg-priority-urgent"
-        />
-      </router-link>
+      <NotificationBell />
     </div>
   </div>
 </template>
