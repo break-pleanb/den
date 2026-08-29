@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   Clock,
   Folder as FolderIcon,
   LayoutGrid,
   ListChecks,
+  LogOut,
   Plus,
   Search,
   Star,
@@ -23,10 +24,22 @@ import type { Project } from '@/mock/types'
 import { useAuthStore } from '@/stores/auth'
 import { confirm } from '@/lib/confirm'
 import ProjectActionsMenu from '@/components/ProjectActionsMenu.vue'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const route = useRoute()
+const router = useRouter()
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
+
+function onLogout() {
+  authStore.logout()
+  router.push({ name: 'login' })
+}
 
 const searchTerm = ref('')
 
@@ -320,18 +333,28 @@ async function onMoveToFolder(projectId: string, folderId: string | null) {
     </div>
 
     <div class="border-t border-border p-2">
-      <div v-if="authStore.currentUser" class="flex items-center gap-2.5 rounded-[9px] p-2 hover:bg-[#f4f5f7]">
-        <div
-          class="grid size-[30px] shrink-0 place-items-center rounded-full text-xs font-semibold text-white"
-          :style="{ background: authStore.currentUser.avatarGradient }"
-        >
-          {{ authStore.currentUser.initials }}
-        </div>
-        <div>
-          <div class="text-[13px] font-semibold">{{ authStore.currentUser.name }}</div>
-          <div class="text-[11px] text-subtle">{{ authStore.currentUser.title }}</div>
-        </div>
-      </div>
+      <DropdownMenu v-if="authStore.currentUser">
+        <DropdownMenuTrigger as-child>
+          <button type="button" class="flex w-full items-center gap-2.5 rounded-[9px] p-2 text-left hover:bg-[#f4f5f7]">
+            <div
+              class="grid size-[30px] shrink-0 place-items-center rounded-full text-xs font-semibold text-white"
+              :style="{ background: authStore.currentUser.avatarGradient }"
+            >
+              {{ authStore.currentUser.initials }}
+            </div>
+            <div>
+              <div class="text-[13px] font-semibold">{{ authStore.currentUser.name }}</div>
+              <div class="text-[11px] text-subtle">{{ authStore.currentUser.title }}</div>
+            </div>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" class="w-48">
+          <DropdownMenuItem @click="onLogout">
+            <LogOut class="size-4" :stroke-width="2" />
+            로그아웃
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   </aside>
 </template>

@@ -62,9 +62,15 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+let restoreAttempted = false
+
+router.beforeEach(async (to) => {
   if (to.meta.public) return true
   const auth = useAuthStore()
+  if (!auth.isAuthenticated && !restoreAttempted) {
+    restoreAttempted = true
+    await auth.restoreSession()
+  }
   if (!auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
