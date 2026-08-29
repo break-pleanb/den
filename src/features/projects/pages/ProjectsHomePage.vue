@@ -7,16 +7,16 @@ import { FolderPlus, Folder as FolderIcon, LayoutGrid, List, Plus, Search, Star 
 import {
   createFolder,
   createProject,
-  fetchAllTasks,
   fetchFavoriteProjectIds,
   fetchFolders,
   fetchMyProjectRoles,
+  fetchProjectStats,
   fetchProjects,
-  fetchUsers,
   moveProjectToFolder,
   toggleFavoriteProject,
-} from '@/mock/api'
-import type { Project, Task, User } from '@/mock/types'
+} from '@/api/projects'
+import { fetchUsers } from '@/mock/api'
+import type { Project, User } from '@/mock/types'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -35,7 +35,7 @@ const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: fetchProj
 const { data: folders } = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
 const { data: favoriteIds } = useQuery({ queryKey: ['favorites'], queryFn: fetchFavoriteProjectIds })
 const { data: myRoles } = useQuery({ queryKey: ['my-project-roles'], queryFn: fetchMyProjectRoles })
-const { data: allTasks } = useQuery({ queryKey: ['all-tasks'], queryFn: fetchAllTasks })
+const { data: projectStats } = useQuery({ queryKey: ['project-stats'], queryFn: fetchProjectStats })
 const { data: users } = useQuery({ queryKey: ['users'], queryFn: fetchUsers })
 
 // ── URL 상태 (뒤로가기로 복원되어야 함) ──────────────────────
@@ -115,34 +115,31 @@ function membersOf(project: Project): User[] {
   return project.memberIds.map((id) => usersById.value.get(id)).filter((u): u is User => !!u)
 }
 
-const tasksByProjectId = computed(() => {
-  const map = new Map<string, Task[]>()
-  for (const task of allTasks.value ?? []) {
-    const list = map.get(task.projectId)
-    if (list) list.push(task)
-    else map.set(task.projectId, [task])
-  }
+const statsByProjectId = computed(() => {
+  const map = new Map<string, { todo: number; progress: number; review: number; done: number; total: number }>()
+  for (const stats of projectStats.value ?? []) map.set(stats.projectId, stats)
   return map
 })
 
 function statsOf(project: Project) {
-  const tasks = tasksByProjectId.value.get(project.id) ?? []
-  const stats = { todo: 0, progress: 0, review: 0, done: 0, total: tasks.length }
-  for (const task of tasks) stats[task.status]++
-  return stats
+  return statsByProjectId.value.get(project.id) ?? { todo: 0, progress: 0, review: 0, done: 0, total: 0 }
 }
 
 function roleOf(project: Project) {
   return myRoles.value?.[project.id]
 }
 
-async function onToggleFavorite(projectId: string) {
-  await toggleFavoriteProject(projectId)
-  await queryClient.invalidateQueries({ queryKey: ['favorites'] })
+async function onToggleFavorite(project: Project) {
+  const { isFavorite } = await toggleFavoriteProject(project.key)
+  queryClient.setQueryData<string[]>(['favorites'], (ids) => {
+    const list = ids ?? []
+    if (isFavorite) return list.includes(project.id) ? list : [...list, project.id]
+    return list.filter((id) => id !== project.id)
+  })
 }
 
-async function onMoveToFolder(projectId: string, folderId: string | null) {
-  await moveProjectToFolder(projectId, folderId)
+async function onMoveToFolder(project: Project, folderId: string | null) {
+  await moveProjectToFolder(project.key, folderId)
   await queryClient.invalidateQueries({ queryKey: ['projects'] })
 }
 

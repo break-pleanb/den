@@ -3,7 +3,8 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ChevronDown, Flag, Rows3, Users as UsersIcon, ListFilter } from '@lucide/vue'
-import { fetchProjectByKey, fetchTagsByProjectKey, fetchTasksByProjectKey, fetchUsers, updateTask, updateTaskStatus } from '@/mock/api'
+import { fetchTagsByProjectKey, fetchTasksByProjectKey, fetchUsers, updateTask, updateTaskStatus } from '@/mock/api'
+import { fetchProjectByKey } from '@/api/projects'
 import {
   DropdownMenu,
   DropdownMenuContent,

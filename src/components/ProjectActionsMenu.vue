@@ -22,15 +22,15 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'move-to-folder': [projectId: string, folderId: string | null]
-  'toggle-favorite': [projectId: string]
+  'move-to-folder': [project: Project, folderId: string | null]
+  'toggle-favorite': [project: Project]
 }>()
 
 const open = ref(false)
 
 function onSelectFolder(folderId: string | null) {
   if (folderId === props.project.folderId) return
-  emit('move-to-folder', props.project.id, folderId)
+  emit('move-to-folder', props.project, folderId)
 }
 
 async function onToggleFavorite() {
@@ -42,7 +42,7 @@ async function onToggleFavorite() {
     })
     if (!ok) return
   }
-  emit('toggle-favorite', props.project.id)
+  emit('toggle-favorite', props.project)
 }
 </script>
 

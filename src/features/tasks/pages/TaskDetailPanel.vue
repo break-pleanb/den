@@ -17,7 +17,6 @@ import {
   addComment,
   createSubtask,
   fetchCommentsByTaskId,
-  fetchProjectByKey,
   fetchTagsByProjectKey,
   fetchTaskById,
   fetchTasksByProjectKey,
@@ -28,6 +27,7 @@ import {
   updateTaskStatus,
   type TaskPatch,
 } from '@/mock/api'
+import { fetchProjectByKey } from '@/api/projects'
 import {
   DropdownMenu,
   DropdownMenuContent,

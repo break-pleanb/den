@@ -9,75 +9,11 @@ import {
   mockNotifications,
 } from './notifications'
 import { getMemberRole, mockProjectMembers, mockRoles } from './permissions'
-import { mockFavoriteProjectIds, mockFolders, mockProjects, getProjectByKey } from './projects'
+import { getProjectByKey } from './projects'
 import { getSubtaskCount, getTaskById, getTasksByProject, mockTasks } from './tasks'
 import { getTagsByProject } from './tags'
 import { CURRENT_USER_ID, getUserById, mockUsers } from './users'
-import type { AppNotification, Channel, Comment, Folder, MenuKey, Message, Project, ProjectMember, Role, Tag, Task, User } from './types'
-
-// ── 프로젝트 / 폴더 / 즐겨찾기 ──────────────────────────────
-
-export async function fetchProjects(): Promise<Project[]> {
-  return structuredClone(mockProjects)
-}
-
-export async function fetchProjectByKey(key: string): Promise<Project | undefined> {
-  return structuredClone(getProjectByKey(key))
-}
-
-export async function fetchFolders(): Promise<Folder[]> {
-  return structuredClone(mockFolders)
-}
-
-export async function createFolder(name: string): Promise<Folder> {
-  const folder: Folder = { id: `f-${crypto.randomUUID()}`, name }
-  mockFolders.push(folder)
-  return structuredClone(folder)
-}
-
-export async function moveProjectToFolder(projectId: string, folderId: string | null): Promise<Project | undefined> {
-  const project = mockProjects.find((p) => p.id === projectId)
-  if (!project) return undefined
-  project.folderId = folderId
-  return structuredClone(project)
-}
-
-// 새 프로젝트 카드 마크 배경으로 순환 사용할 액센트 팔레트
-const NEW_PROJECT_COLOR_PALETTE = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#0ea5e9', '#14b8a6',
-  '#ef4444', '#22c55e', '#a855f7', '#10b981', '#f59e0b', '#06b6d4', '#f97316',
-]
-
-export async function createProject(name: string, folderId: string | null = null): Promise<Project> {
-  const id = `p-${crypto.randomUUID()}`
-  const key = `PROJ${Date.now().toString(36).toUpperCase()}`
-  const color = NEW_PROJECT_COLOR_PALETTE[mockProjects.length % NEW_PROJECT_COLOR_PALETTE.length]
-  const project: Project = { id, key, name, description: '', color, folderId, memberIds: [CURRENT_USER_ID] }
-  mockProjects.push(project)
-
-  const roleId = `r-${id}-admin`
-  mockRoles.push({ id: roleId, projectId: id, name: '관리자', isAdmin: true, menuPermissions: { tasks: true, gantt: true, messenger: true } })
-  mockProjectMembers.push({ userId: CURRENT_USER_ID, projectId: id, roleId, invitedAt: new Date().toISOString().slice(0, 10) })
-
-  return structuredClone(project)
-}
-
-// 현재 사용자의 프로젝트별 역할 (projectId -> Role). 홈 화면 카드의 역할 배지용
-export async function fetchMyProjectRoles(): Promise<Record<string, Role | undefined>> {
-  const entries = mockProjects.map((p) => [p.id, getMemberRole(p.id, CURRENT_USER_ID)] as const)
-  return structuredClone(Object.fromEntries(entries))
-}
-
-export async function fetchFavoriteProjectIds(): Promise<string[]> {
-  return [...mockFavoriteProjectIds]
-}
-
-export async function toggleFavoriteProject(projectId: string): Promise<string[]> {
-  const idx = mockFavoriteProjectIds.indexOf(projectId)
-  if (idx === -1) mockFavoriteProjectIds.push(projectId)
-  else mockFavoriteProjectIds.splice(idx, 1)
-  return [...mockFavoriteProjectIds]
-}
+import type { AppNotification, Channel, Comment, MenuKey, Message, ProjectMember, Role, Tag, Task, User } from './types'
 
 // ── 사용자 / 권한 ──────────────────────────────────────────
 
@@ -192,11 +128,6 @@ export async function fetchTasksByProjectKey(projectKey: string): Promise<Task[]
   const project = getProjectByKey(projectKey)
   if (!project) return []
   return structuredClone(getTasksByProject(project.id))
-}
-
-// 모든 프로젝트의 업무. 전체 프로젝트 홈의 카드별 진행 요약·통계 계산용
-export async function fetchAllTasks(): Promise<Task[]> {
-  return structuredClone(mockTasks)
 }
 
 export async function fetchTaskById(taskId: string): Promise<Task | undefined> {

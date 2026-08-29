@@ -16,8 +16,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'toggle-favorite': [projectId: string]
-  'move-to-folder': [projectId: string, folderId: string | null]
+  'toggle-favorite': [project: Project]
+  'move-to-folder': [project: Project, folderId: string | null]
 }>()
 
 const visibleMembers = computed(() => props.members.slice(0, 3))
@@ -38,7 +38,7 @@ async function onStarClick(event: MouseEvent) {
     })
     if (!ok) return
   }
-  emit('toggle-favorite', props.project.id)
+  emit('toggle-favorite', props.project)
 }
 </script>
 
@@ -75,7 +75,7 @@ async function onStarClick(event: MouseEvent) {
         :folders="folders"
         :is-favorite="isFavorite"
         @toggle-favorite="emit('toggle-favorite', $event)"
-        @move-to-folder="(projectId, folderId) => emit('move-to-folder', projectId, folderId)"
+        @move-to-folder="(project, folderId) => emit('move-to-folder', project, folderId)"
       />
     </div>
 

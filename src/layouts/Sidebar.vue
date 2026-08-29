@@ -15,11 +15,11 @@ import {
 import {
   fetchFavoriteProjectIds,
   fetchFolders,
-  fetchMyTaskCount,
   fetchProjects,
   moveProjectToFolder,
   toggleFavoriteProject,
-} from '@/mock/api'
+} from '@/api/projects'
+import { fetchMyTaskCount } from '@/mock/api'
 import type { Project } from '@/mock/types'
 import { useAuthStore } from '@/stores/auth'
 import { confirm } from '@/lib/confirm'
@@ -96,6 +96,15 @@ function isFavorite(projectId: string) {
   return (favoriteIds.value ?? []).includes(projectId)
 }
 
+async function applyFavoriteToggle(project: Project) {
+  const { isFavorite } = await toggleFavoriteProject(project.key)
+  queryClient.setQueryData<string[]>(['favorites'], (ids) => {
+    const list = ids ?? []
+    if (isFavorite) return list.includes(project.id) ? list : [...list, project.id]
+    return list.filter((id) => id !== project.id)
+  })
+}
+
 async function onToggleFavorite(event: MouseEvent, project: Project) {
   event.stopPropagation()
   event.preventDefault()
@@ -105,18 +114,16 @@ async function onToggleFavorite(event: MouseEvent, project: Project) {
     destructive: true,
   })
   if (!ok) return
-  await toggleFavoriteProject(project.id)
-  await queryClient.invalidateQueries({ queryKey: ['favorites'] })
+  await applyFavoriteToggle(project)
 }
 
 // ProjectActionsMenu는 해제 시 확인을 이미 자체적으로 처리하므로 여기서는 바로 토글한다
-async function onMenuToggleFavorite(projectId: string) {
-  await toggleFavoriteProject(projectId)
-  await queryClient.invalidateQueries({ queryKey: ['favorites'] })
+async function onMenuToggleFavorite(project: Project) {
+  await applyFavoriteToggle(project)
 }
 
-async function onMoveToFolder(projectId: string, folderId: string | null) {
-  await moveProjectToFolder(projectId, folderId)
+async function onMoveToFolder(project: Project, folderId: string | null) {
+  await moveProjectToFolder(project.key, folderId)
   await queryClient.invalidateQueries({ queryKey: ['projects'] })
 }
 </script>

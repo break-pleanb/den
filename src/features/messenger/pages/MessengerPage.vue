@@ -6,12 +6,12 @@ import {
   addAutoReply,
   fetchChannelsByProjectKey,
   fetchMessagesByChannelId,
-  fetchProjectByKey,
   fetchUsers,
   markChannelRead,
   sendMessage,
   simulateBackgroundActivity,
 } from '@/mock/api'
+import { fetchProjectByKey } from '@/api/projects'
 import { CURRENT_USER_ID } from '@/mock/users'
 import type { Channel, User } from '@/mock/types'
 import ChatPanel from '@/features/messenger/components/ChatPanel.vue'

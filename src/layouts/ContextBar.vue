@@ -4,11 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { useQuery } from '@tanstack/vue-query'
 import { ChartGantt, ListChecks, MessageSquare, Search, Settings } from '@lucide/vue'
-import {
-  fetchMenuPermissions,
-  fetchProjectByKey,
-  fetchUnreadChannelCount,
-} from '@/mock/api'
+import { fetchMenuPermissions, fetchUnreadChannelCount } from '@/mock/api'
+import { fetchProjectByKey } from '@/api/projects'
 import NotificationBell from '@/features/notifications/components/NotificationBell.vue'
 
 const route = useRoute()

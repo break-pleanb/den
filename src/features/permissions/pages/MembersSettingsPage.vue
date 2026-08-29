@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { Trash2, UserPlus } from '@lucide/vue'
 import {
-  fetchProjectByKey,
   fetchProjectMembers,
   fetchRolesByProjectKey,
   fetchUsers,
@@ -11,6 +10,7 @@ import {
   removeProjectMember,
   updateProjectMemberRole,
 } from '@/mock/api'
+import { fetchProjectByKey } from '@/api/projects'
 import { CURRENT_USER_ID } from '@/mock/users'
 import type { ProjectMember, Role, User } from '@/mock/types'
 import { Button } from '@/components/ui/button'
