@@ -67,6 +67,13 @@ const { data: channels } = useQuery({
 })
 
 const currentUserId = computed(() => authStore.currentUser?.id)
+// 지금 메신저 화면에서 열려있는 채널이면 MessengerPage 쪽 읽음 처리(readMutation)가 이미
+// 같은 두 쿼리를 invalidate하므로 여기서 또 하지 않는다 — 한 메시지에 두 번씩 재조회되는 걸 막는다.
+// URL에 channelId가 없으면 MessengerPage도 채널 목록의 첫 번째로 기본 선택하므로 그 규칙을 그대로 따른다.
+const openMessengerChannelId = computed(() => {
+  if (route.name !== 'messenger') return undefined
+  return (route.params.channelId as string | undefined) ?? channels.value?.[0]?.id
+})
 let channelUnsubscribers: (() => void)[] = []
 
 function resubscribeChannels() {
@@ -74,6 +81,7 @@ function resubscribeChannels() {
   channelUnsubscribers = (channels.value ?? []).map((channel) =>
     subscribeChannelMessages(channel.id, (message) => {
       if (message.authorId === currentUserId.value) return
+      if (channel.id === openMessengerChannelId.value) return
       queryClient.invalidateQueries({ queryKey: ['channels', projectKey.value] })
       queryClient.invalidateQueries({ queryKey: ['unread-channels', projectKey.value] })
     }),
