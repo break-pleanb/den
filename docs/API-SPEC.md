@@ -102,7 +102,7 @@
 
 **Response** `201` → [`Project`](#project)
 
-**비고 (서버 side effect)**: 생성 시 요청자를 위한 관리자 역할(`isAdmin: true`, 모든 메뉴 권한 `true`)을 자동 생성하고 `ProjectMember`로 등록한다. `key`는 서버가 발급하는 고유 슬러그(예: 프로젝트명 기반 또는 순번). `color`는 팔레트에서 순환 할당.
+**비고 (서버 side effect)**: 생성 시 요청자를 위한 관리자 역할(`isAdmin: true`, 모든 메뉴 권한 `true`)을 자동 생성하고 `ProjectMember`로 등록한다. `key`는 서버가 발급하는 고유 슬러그(예: 프로젝트명 기반 또는 순번). `color`는 팔레트에서 순환 할당. **기본 채널 자동 생성 (2026-08-29 추가)**: "일반"이라는 이름의 그룹 채널(`Channel.type: 'group'`)을 함께 만들고 요청자를 그 채널의 멤버로 등록한다. 이후 초대되는 멤버는 이 기본 채널에 자동 참여하지 않는다(필요해지면 별도 합의 후 추가).
 
 ### `GET /api/projects/{projectKey}`
 목업 함수: `fetchProjectByKey(key): Promise<Project | undefined>`
@@ -160,6 +160,12 @@ Record<projectId, Role | undefined>
 
 ## 3. 사용자 / 멤버 / 권한
 
+> **멤버·역할 관리 권한 (2026-08-29 확정)**
+> 아래 표시된 멤버 초대/역할 변경/제거, 역할 메뉴권한 수정 4개 엔드포인트는
+> **요청자가 해당 프로젝트에서 관리자 역할(`Role.isAdmin === true`)을 가진 멤버일 때만** 허용한다.
+> 관리자가 아니면(멤버이더라도) **403**. 전역(시스템 전체) 관리자 개념은 없음 — 프로젝트마다 독립적으로 판단.
+> (0.4절의 멤버 여부 체크는 선행 조건으로 그대로 적용: 아예 멤버가 아니면 404.)
+
 ### `GET /api/projects/{projectKey}/users`
 목업 함수 대응 없음 (목업의 `fetchUsers()`를 프로젝트 범위로 좁힌 엔드포인트).
 멘션 대상·담당자 후보 선택용 — 이 프로젝트 멤버만 반환한다. 댓글 멘션, 담당자 지정, 메신저 멘션 등 "이 프로젝트 안에서 사람을 고르는" 화면은 모두 이 엔드포인트를 쓴다.
@@ -216,7 +222,7 @@ Record<'tasks' | 'gantt' | 'messenger', boolean>
 
 **Response** `201` → [`ProjectMember`](#projectmember)
 
-`404` — 존재하지 않는 `userId`. `409` — 이미 해당 프로젝트 멤버.
+`404` — 존재하지 않는 `userId`. `409` — 이미 해당 프로젝트 멤버. **`403`** — 요청자가 관리자가 아님.
 
 > **목업과의 차이**: 목업 함수 `inviteProjectMember(projectKey, name, email, roleId)`는 이름·이메일을 입력받아 그 자리에서 신규 `User`를 만드는 것처럼 동작한다 → 10장 참고.
 
@@ -226,10 +232,16 @@ Record<'tasks' | 'gantt' | 'messenger', boolean>
 **Request** `{ roleId: string }`
 **Response** `204`
 
+**`403`** — 요청자가 관리자가 아님.
+**`409`** — **마지막 관리자 보호**: 대상이 그 프로젝트의 유일한 관리자 멤버인데 `roleId`가 관리자가 아닌 역할을 가리키는 경우. 관리자가 0명인 프로젝트가 생기는 것을 막는다.
+
 ### `DELETE /api/projects/{projectKey}/members/{userId}`
 목업 함수: `removeProjectMember(projectKey, userId): Promise<void>`
 
 **Response** `204`
+
+**`403`** — 요청자가 관리자가 아님.
+**`409`** — **마지막 관리자 보호**: 대상이 그 프로젝트의 유일한 관리자 멤버인 경우 제거 불가.
 
 ### `PATCH /api/roles/{roleId}/menu-permissions`
 목업 함수: `updateRoleMenuPermission(roleId, menuKey, value): Promise<void>`
@@ -239,6 +251,8 @@ Record<'tasks' | 'gantt' | 'messenger', boolean>
 { menuKey: 'tasks' | 'gantt' | 'messenger'; value: boolean }
 ```
 **Response** `204`
+
+**`403`** — 요청자가 (해당 역할이 속한 프로젝트의) 관리자가 아님.
 
 ---
 
@@ -274,6 +288,26 @@ Record<'tasks' | 'gantt' | 'messenger', boolean>
 > **목업 단계와의 차이**: 목업 함수(`fetchTasksByProjectKey`)는 프로젝트의 전체 업무 배열을 반환하고, 필터·검색·페이지네이션은 `TaskListPage.vue`가 `route.query`를 읽어 **클라이언트에서** 처리한다 → 10장 참고.
 > `group`(그룹핑)·`view`(리스트/간트)는 응답에 포함될 데이터 자체를 바꾸지 않는 화면 전용 상태이므로 쿼리 파라미터로 보내지 않는다 — URL에는 남지만(URL 우선 원칙) 서버 계약과는 무관하다.
 
+### `POST /api/projects/{projectKey}/tasks`
+목업 함수 대응 없음 (2026-08-29, 백엔드 구현 중 추가 — 기존엔 `POST /tasks/{parentId}/subtasks`로 하위업무만 만들 수 있고 최상위 업무를 만드는 방법이 없었다). 최상위 업무 생성용.
+
+**Request**
+```ts
+{
+  title: string             // 필수
+  status?: TaskStatus       // 기본값 'todo'
+  priority?: TaskPriority   // 기본값 'medium'
+  startDate?: string        // 기본값: endDate가 있으면 그 값, 없으면 오늘
+  endDate?: string          // 기본값: startDate와 동일
+  assigneeIds?: string[]    // 기본값 []. 프로젝트 멤버가 아닌 userId가 섞이면 400
+  tagIds?: string[]         // 기본값 []. 프로젝트에 속하지 않은 tagId가 섞이면 400
+  isPrivate?: boolean       // 기본값 false
+}
+```
+**Response** `201` → [`Task`](#task)
+
+**비고**: `progress`는 항상 `0`으로 시작한다(요청으로 지정 불가). `code`는 서버가 프로젝트 접두어(`projectKey`)에 그 프로젝트 내 최대 순번 + 1을 붙여 자동 발급한다 (하위업무 생성과 동일 규칙, 아래 참고). `assigneeIds`를 지정하면 각 대상에게 `task_assigned` 알림이 생성된다 (7장 트리거와 동일).
+
 ### `GET /api/me/project-stats`
 목업 함수 대응 없음 (목업의 `fetchAllTasks(): Promise<Task[]>`을 대체하는 집계 엔드포인트).
 전체 프로젝트 홈의 카드별 진행 현황 계산용 — 요청자가 접근 가능한 **모든 프로젝트**의 업무를 프로젝트별로 집계해 반환한다. `/me` 네임스페이스를 쓰는 이유: `/api/projects/{projectKey}` 단건 조회 경로와 겹치지 않도록, 그리고 "요청자 기준" 집계임을 경로에서 드러내기 위해.
@@ -284,6 +318,8 @@ Record<'tasks' | 'gantt' | 'messenger', boolean>
 ```
 
 > 목업 함수는 전체 프로젝트의 업무 원본을 통째로 내려받아 프론트에서 `statsOf(project)`로 집계한다. 프로젝트가 50~100개 규모면 매 홈 화면 진입마다 불필요하게 큰 페이로드를 전송하게 되므로 집계된 숫자만 반환하는 이 엔드포인트로 대체한다 → 10장 참고. 업무 원문이 필요한 화면(업무 리스트·상세)은 위 `GET /api/projects/{projectKey}/tasks`, `GET /api/tasks/{taskId}`로 별도 조회한다.
+
+> **권한 (2026-08-29 확정)**: 이 엔드포인트는 tasks 메뉴 권한으로 게이팅하지 않는다 — 전체 프로젝트 홈 카드는 "업무" 화면 진입권과 무관하게 보여야 하기 때문. 프로젝트 멤버십(0.4절)만 확인하고, isPrivate 업무는 여전히 집계에서 제외한다(담당자·참여자 제외).
 
 ### `GET /api/me/task-count`
 목업 함수: `fetchMyTaskCount(): Promise<number>`
@@ -382,11 +418,41 @@ type TaskPatch = Partial<
 
 ## 6. 메신저
 
+> **채널 생성 엔드포인트 (2026-08-29 추가)**
+> 목업 함수 대응 없음 — 목업 데이터가 이미 채널이 있는 상태로 시작해서 "채널 생성" 화면/버튼이 없었다.
+> 원래 API-SPEC.md 6장에는 채널을 만드는 방법 자체가 없었는데, 그러면 메신저 기능을 실제로 테스트할
+> 방법이 없어 6단계 최상위 업무 생성 신설과 같은 이유로 사용자와 합의해 아래 두 엔드포인트를 신설했다.
+> 응답이 `Channel` 하나뿐인 목업 함수가 없으므로 `GET /api/projects/{projectKey}/channels`로
+> 새로고침하거나, 이 엔드포인트의 응답을 그대로 로컬 목록에 추가해서 쓰면 된다.
+
 ### `GET /api/projects/{projectKey}/channels`
 목업 함수: `fetchChannelsByProjectKey(projectKey): Promise<Channel[]>`
 각 채널의 `unreadCount`는 요청자 기준 (채널의 `last_read_at` 이후 메시지 수).
 
 **Response** `200` → [`Channel`](#channel)`[]`
+
+### `POST /api/projects/{projectKey}/channels`
+목업 함수 대응 없음 (2026-08-29 신설). 그룹 채널 생성용.
+
+**Request**
+```ts
+{ name: string; memberIds?: string[] }   // 요청자는 memberIds에 없어도 항상 자동 포함된다
+```
+**Response** `201` → [`Channel`](#channel)
+
+**비고**: `memberIds`가 이 프로젝트 멤버가 아닌 userId를 포함하면 **400**.
+
+### `POST /api/projects/{projectKey}/channels/dm`
+목업 함수 대응 없음 (2026-08-29 신설). 1:1 DM 채널 생성 — **멱등**: 요청자·`targetUserId` 두 사람으로
+이루어진 DM 채널이 이미 있으면 새로 만들지 않고 그 채널을 그대로 반환한다.
+
+**Request**
+```ts
+{ targetUserId: string }
+```
+**Response** `200` → [`Channel`](#channel)  (신규 생성이든 기존 채널 반환이든 항상 200 — 멱등 동작이라 클라이언트가 신규/기존을 구분할 필요가 없다)
+
+**비고**: `targetUserId`가 이 프로젝트 멤버가 아니면 **400**. `targetUserId`가 요청자 자신이면 **400**.
 
 ### `GET /api/projects/{projectKey}/channels/unread-count`
 목업 함수: `fetchUnreadChannelCount(projectKey): Promise<number>`
@@ -410,7 +476,7 @@ type TaskPatch = Partial<
 ```
 **Response** `201` → [`Message`](#message)
 
-**비고**: 저장과 동시에 STOMP `/topic/channel/{channelId}`로 브로드캐스트한다 (8장). 채널을 지금 보고 있지 않은 멤버에게는 `channel_message` 알림도 생성한다.
+**비고**: 저장과 동시에 STOMP `/topic/channel/{channelId}`로 브로드캐스트한다 (8장). 채널을 지금 보고 있지 않은 멤버에게는 `channel_message` 알림도 생성한다 — "지금 보고 있음"은 그 채널 토픽(`/topic/channel/{channelId}`)을 STOMP로 구독 중인지로 판단하며(Redis에 구독 상태 기록), 작성자 본인은 항상 제외한다. `mentionUserIds`가 채널 멤버가 아닌 userId를 포함하면 **400**.
 
 ### `POST /api/channels/{channelId}/read`
 목업 함수: `markChannelRead(channelId): Promise<void>`
@@ -456,6 +522,14 @@ type TaskPatch = Partial<
 | `channel_message` | 채널 메시지 발송 시, 그 채널을 보고 있지 않은 멤버에게 |
 | `project_invited` | `POST /projects/{projectKey}/members`로 초대됐을 때 |
 
+> `task_due_soon`은 주기가 스펙에 없어 2026-08-29 사용자와 합의: 매일 09:00 1회(`TaskDueSoonScheduler`) 스캔하고,
+> 같은 업무·수신자 조합은 당일 이미 알림이 있으면 다시 만들지 않는다.
+> `channel_message`는 8단계(메신저)에서 메시지 발송 API와 함께 구현했다 — "보고 있지 않은 멤버" 판단 방식은
+> 6장 `POST /channels/{channelId}/messages` 비고 참고.
+>
+> 모든 알림은 생성과 동시에 STOMP `/user/queue/notifications`로도 실시간 푸시된다 (8장 WebSocket 참고,
+> 8단계에서 배선). REST 조회·읽음 처리 API는 실시간 연결이 끊겨 있던 동안 놓친 알림을 따라잡기 위한 것이다.
+
 ---
 
 ## 8. WebSocket (STOMP) — 참고
@@ -469,6 +543,13 @@ REST가 아니지만 메신저·알림 실시간성에 필요한 계약. 상세�
 발행   /app/channel/{channelId}/send    메시지 전송 (REST POST 대신 또는 함께 사용 가능)
 발행   /app/channel/{channelId}/typing  입력 중 표시
 ```
+
+> **구현 세부사항 (2026-08-29, 8단계에서 확정 — DEN-DESIGN.md 6.2절엔 이 정도 세부사항까지는 없었음)**
+> - **`/ws` 인증**: 브라우저 네이티브 WebSocket API는 핸드셰이크 요청에 커스텀 헤더를 못 실으므로,
+>   `Authorization` 헤더 대신 쿼리 파라미터로 액세스 토큰을 전달한다 — `/ws?token=<accessToken>`.
+> - **타이핑 구독 목적지**: 원 설계엔 발행(`/app/.../typing`) 목적지만 있고 구독 목적지가 없었다.
+>   메시지 토픽(`/topic/channel/{channelId}`)은 `Message` 타입 계약을 지켜야 해서 섞지 않고,
+>   별도로 `/topic/channel/{channelId}/typing`을 구독하도록 정했다. 페이로드: `{ userId, at }`.
 
 ---
 
@@ -644,3 +725,5 @@ interface AppNotification {
 | 멘션·담당자 선택 | `fetchUsers()`로 **전체 사용자** 목록을 받아 멘션·담당자 후보로 그대로 사용 | 프로젝트 멤버로 범위가 좁아진 `GET /api/projects/{projectKey}/users`로 교체 | 3장 `GET /api/projects/{projectKey}/users` | 담당자 피커, 댓글·메시지 멘션 입력 컴포넌트 |
 | 전체 프로젝트 홈 통계 | `fetchAllTasks()`로 **전체 프로젝트의 업무 원본**을 받아 카드별로 `statsOf()` 클라이언트 집계 | 집계된 숫자만 받는 `GET /api/me/project-stats`로 교체 — 클라이언트 집계 로직 제거 | 4장 `GET /api/me/project-stats` | `ProjectsHomePage.vue`의 `fetchAllTasks`/`statsOf()` |
 | 메신저 메시지 | 채널의 **전체 메시지**를 한 번에 로드 | `?before=&limit=` 커서 기반 페이지네이션 + 무한 스크롤로 변경 (추후 — 메시지 양이 실제로 문제될 때 진행) | 6장 `GET /channels/{channelId}/messages` | `MessengerPage.vue`, `ChatPanel.vue` |
+| 최상위 업무 생성 | 목업에는 대응 함수 자체가 없음 — 목업 데이터가 이미 시드된 상태로 시작해서 "업무 생성" 화면/버튼이 없었다 | `POST /api/projects/{projectKey}/tasks` 신설 (2026-08-29). **프론트도 목업에 없던 이 API를 호출하도록 새로 추가해야 한다** — 업무 생성 UI(버튼·폼)가 아직 없다면 이 화면부터 만들어야 함 | 4장 `POST /api/projects/{projectKey}/tasks` | (신규) 업무 목록/보드 화면에 업무 생성 진입점 추가 필요 |
+| 채널·DM 생성 | 목업에는 대응 함수 자체가 없음 — 목업 데이터가 이미 채널이 있는 상태로 시작해서 "채널 생성" 화면/버튼이 없었다 | `POST /api/projects/{projectKey}/channels`(그룹), `POST /api/projects/{projectKey}/channels/dm`(1:1) 신설 (2026-08-29). **프론트에 채널 생성 UI가 없으므로 새로 만들어야 함** — 그룹 채널 만들기 버튼(이름·멤버 선택)과 DM 시작하기(멤버 목록에서 상대 선택 → `POST .../dm` 호출, 응답 채널로 바로 이동) 둘 다 필요 | 6장 `POST /api/projects/{projectKey}/channels`, `POST /api/projects/{projectKey}/channels/dm` | (신규) `MessengerPage.vue`에 채널 생성·DM 시작 진입점 추가 필요 |
