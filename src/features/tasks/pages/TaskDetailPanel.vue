@@ -10,12 +10,15 @@ import {
   Lock,
   LockOpen,
   MessageSquare,
+  Trash2,
   TriangleAlert,
   X,
 } from '@lucide/vue'
+import { fetchTaskActivities } from '@/api/activities'
 import { addComment, fetchCommentsByTaskId } from '@/api/comments'
 import {
   createSubtask,
+  deleteTask,
   fetchAllProjectTasks,
   fetchTagsByProjectKey,
   fetchTaskById,
@@ -27,6 +30,7 @@ import {
 } from '@/api/tasks'
 import { fetchProjectByKey } from '@/api/projects'
 import { fetchProjectUsers } from '@/api/users'
+import { confirm } from '@/lib/confirm'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +38,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import TaskActivitySection from '@/features/tasks/components/TaskActivitySection.vue'
 import TaskAssigneePicker from '@/features/tasks/components/TaskAssigneePicker.vue'
 import TaskCommentSection from '@/features/tasks/components/TaskCommentSection.vue'
 import TaskDependencySection from '@/features/tasks/components/TaskDependencySection.vue'
@@ -99,6 +104,11 @@ const { data: comments } = useQuery({
   queryFn: () => fetchCommentsByTaskId(taskId.value),
 })
 
+const { data: activities } = useQuery({
+  queryKey: ['activities', taskId],
+  queryFn: () => fetchTaskActivities(taskId.value),
+})
+
 const usersById = computed(() => Object.fromEntries((users.value ?? []).map((u) => [u.id, u])))
 const tagsById = computed(() => Object.fromEntries((tags.value ?? []).map((t) => [t.id, t])))
 
@@ -132,6 +142,7 @@ const dateOrderInvalid = computed(() => !!task.value && task.value.startDate > t
 function invalidateTask() {
   queryClient.invalidateQueries({ queryKey: ['task', taskId.value] })
   queryClient.invalidateQueries({ queryKey: ['tasks', projectKey.value] })
+  queryClient.invalidateQueries({ queryKey: ['activities', taskId.value] })
 }
 
 const updateTaskMutation = useMutation({
@@ -166,6 +177,15 @@ const createSubtaskMutation = useMutation({
 const toggleSubtaskMutation = useMutation({
   mutationFn: (payload: { id: string; status: TaskStatus }) => updateTaskStatus(payload.id, payload.status),
   onSuccess: invalidateTask,
+})
+
+// 삭제 후엔 이 업무 자체가 없어지므로 목록만 갱신하고 상세 조회는 갱신하지 않는다
+const deleteTaskMutation = useMutation({
+  mutationFn: () => deleteTask(taskId.value),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['tasks', projectKey.value] })
+    close()
+  },
 })
 
 const addCommentMutation = useMutation({
@@ -253,6 +273,18 @@ function onSubmitComment(payload: { body: string; mentionUserIds: string[] }) {
   addCommentMutation.mutate(payload)
 }
 
+async function onDeleteTask() {
+  if (!task.value) return
+  const ok = await confirm({
+    title: '업무를 삭제할까요?',
+    description: `'${task.value.title}' 업무를 삭제합니다. 하위 업무도 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`,
+    confirmLabel: '삭제',
+    destructive: true,
+  })
+  if (!ok) return
+  deleteTaskMutation.mutate()
+}
+
 // ── 닫기 ──────────────────────────────────────────────────
 
 // 닫기는 push가 아닌 replace — 열기(push)와 짝을 이뤄 히스토리를 쌓지 않는다.
@@ -296,9 +328,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             </button>
           </div>
         </div>
-        <button type="button" class="shrink-0 text-muted-foreground hover:text-foreground" aria-label="닫기" @click="close">
-          <X class="size-4.5" />
-        </button>
+        <div class="flex shrink-0 items-center gap-1">
+          <button
+            v-if="task"
+            type="button"
+            class="grid size-7 place-items-center rounded-[8px] text-muted-foreground hover:bg-secondary hover:text-destructive"
+            aria-label="업무 삭제"
+            @click="onDeleteTask"
+          >
+            <Trash2 class="size-4" :stroke-width="2" />
+          </button>
+          <button
+            type="button"
+            class="grid size-7 place-items-center rounded-[8px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+            aria-label="닫기"
+            @click="close"
+          >
+            <X class="size-4.5" />
+          </button>
+        </div>
       </div>
 
       <div v-if="task" class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -460,6 +508,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             :mention-options="assigneeOptions"
             @submit="onSubmitComment"
           />
+        </section>
+
+        <!-- 변경 이력 -->
+        <section class="mt-6 border-t border-border pt-5">
+          <h3 class="mb-3 text-xs font-semibold tracking-wide text-subtle uppercase">변경 이력</h3>
+          <TaskActivitySection :activities="activities ?? []" :users-by-id="usersById" />
         </section>
       </div>
 

@@ -78,6 +78,27 @@ export interface Comment {
   createdAt: string // ISO datetime
 }
 
+export type ActivityField =
+  | 'status'
+  | 'priority'
+  | 'title'
+  | 'startDate'
+  | 'endDate'
+  | 'progress'
+  | 'assignees'
+  | 'isPrivate'
+  | 'dependencies'
+
+export interface TaskActivity {
+  id: string
+  taskId: string
+  field: ActivityField
+  oldValue: string // field별 형식은 docs/API-SPEC.md 4장 GET /api/tasks/{taskId}/activities 표 참고
+  newValue: string
+  changedById: string
+  createdAt: string // ISO datetime
+}
+
 export interface Channel {
   id: string
   projectId: string

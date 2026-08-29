@@ -125,6 +125,15 @@ export async function updateTaskDependencies(taskId: string, dependencyIds: stri
   }
 }
 
+export async function deleteTask(taskId: string): Promise<void> {
+  try {
+    await http.delete(`/tasks/${taskId}`)
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return
+    throw error
+  }
+}
+
 export async function fetchTagsByProjectKey(projectKey: string): Promise<Tag[]> {
   const { data } = await http.get<Tag[]>(`/projects/${projectKey}/tags`)
   return data
