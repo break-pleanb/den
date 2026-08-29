@@ -15,7 +15,7 @@ import {
   moveProjectToFolder,
   toggleFavoriteProject,
 } from '@/api/projects'
-import { fetchUsers } from '@/mock/api'
+import { searchUsers } from '@/api/users'
 import type { Project, User } from '@/mock/types'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -36,7 +36,10 @@ const { data: folders } = useQuery({ queryKey: ['folders'], queryFn: fetchFolder
 const { data: favoriteIds } = useQuery({ queryKey: ['favorites'], queryFn: fetchFavoriteProjectIds })
 const { data: myRoles } = useQuery({ queryKey: ['my-project-roles'], queryFn: fetchMyProjectRoles })
 const { data: projectStats } = useQuery({ queryKey: ['project-stats'], queryFn: fetchProjectStats })
-const { data: users } = useQuery({ queryKey: ['users'], queryFn: fetchUsers })
+// 카드 아바타용 — 프로젝트별로 GET /projects/{key}/users를 따로 부르지 않고,
+// q 없이 GET /api/users를 한 번만 호출해 전체 사용자를 받아 project.memberIds와 매핑한다.
+// (API-SPEC.md 3장엔 q가 필수로 적혀 있음 — q='' 호출 시 백엔드가 전체 목록을 돌려주는지 확인 필요)
+const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => searchUsers('') })
 
 // ── URL 상태 (뒤로가기로 복원되어야 함) ──────────────────────
 // 입력창은 로컬 ref로 즉시 반응하고, URL 반영은 디바운스 후 router.push로 커밋한다.

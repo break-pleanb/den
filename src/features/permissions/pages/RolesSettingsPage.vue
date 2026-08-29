@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import axios from 'axios'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { fetchRolesByProjectKey, updateRoleMenuPermission } from '@/mock/api'
+import { fetchRolesByProjectKey, updateRoleMenuPermission } from '@/api/permissions'
 import type { MenuKey, Role } from '@/mock/types'
 import SettingsTabs from '../components/SettingsTabs.vue'
 
@@ -16,14 +17,23 @@ const { data: roles } = useQuery({
 
 const menuLabels: Record<MenuKey, string> = { tasks: '업무', gantt: '간트차트', messenger: '메신저' }
 const menuKeys = Object.keys(menuLabels) as MenuKey[]
+const errorMessage = ref('')
 
 async function onToggle(role: Role, key: MenuKey) {
-  await updateRoleMenuPermission(role.id, key, !role.menuPermissions[key])
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['roles', projectKey.value] }),
-    queryClient.invalidateQueries({ queryKey: ['member-roles', projectKey.value] }),
-    queryClient.invalidateQueries({ queryKey: ['menu-permissions', projectKey.value] }),
-  ])
+  errorMessage.value = ''
+  try {
+    await updateRoleMenuPermission(role.id, key, !role.menuPermissions[key])
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['roles', projectKey.value] }),
+      queryClient.invalidateQueries({ queryKey: ['member-roles', projectKey.value] }),
+      queryClient.invalidateQueries({ queryKey: ['menu-permissions', projectKey.value] }),
+    ])
+  } catch (error) {
+    errorMessage.value =
+      axios.isAxiosError(error) && error.response?.status === 403
+        ? '관리자만 메뉴 권한을 변경할 수 있습니다.'
+        : '메뉴 권한 변경에 실패했습니다.'
+  }
 }
 </script>
 
@@ -35,6 +45,7 @@ async function onToggle(role: Role, key: MenuKey) {
     <div class="mb-4 text-[13px] text-muted-foreground">
       역할별로 메뉴 접근 여부를 켜고 끌 수 있습니다. 꺼진 메뉴는 해당 역할의 멤버에게 상단 탭에서 보이지 않습니다.
     </div>
+    <p v-if="errorMessage" class="mb-4 text-[13px] text-destructive">{{ errorMessage }}</p>
 
     <div class="overflow-hidden rounded-lg border border-border shadow-card">
       <div

@@ -4,7 +4,7 @@ import {
   fetchUnreadNotificationCount,
   markAllNotificationsRead,
   markNotificationRead,
-} from '@/mock/api'
+} from '@/api/notifications'
 
 export const useNotificationStore = defineStore('notifications', () => {
   const unreadCount = ref(0)

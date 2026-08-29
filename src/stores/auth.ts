@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import type { User } from '@/mock/types'
 import { fetchCurrentUser, login as loginRequest } from '@/api/auth'
 import { clearTokens, getAccessToken, setTokens } from '@/lib/token'
+import { connectStomp, disconnectStomp } from '@/lib/stomp'
 import { useNotificationStore } from './notifications'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -13,6 +14,7 @@ export const useAuthStore = defineStore('auth', () => {
     const { accessToken, refreshToken, user } = await loginRequest(email, password)
     setTokens(accessToken, refreshToken)
     currentUser.value = user
+    connectStomp()
     await useNotificationStore().refreshUnreadCount()
   }
 
@@ -22,6 +24,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!getAccessToken()) return false
     try {
       currentUser.value = await fetchCurrentUser()
+      connectStomp()
       await useNotificationStore().refreshUnreadCount()
       return true
     } catch {
@@ -32,6 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout() {
+    disconnectStomp()
     clearTokens()
     currentUser.value = null
   }

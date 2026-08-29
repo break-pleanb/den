@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ChartGantt, ListChecks, MessageSquare, Search, Settings } from '@lucide/vue'
-import { fetchMenuPermissions, fetchUnreadChannelCount } from '@/mock/api'
+import { fetchChannelsByProjectKey, fetchUnreadChannelCount } from '@/api/messenger'
+import { fetchMenuPermissions } from '@/api/permissions'
 import { fetchProjectByKey } from '@/api/projects'
+import { subscribeChannelMessages } from '@/lib/stomp'
+import { useAuthStore } from '@/stores/auth'
 import NotificationBell from '@/features/notifications/components/NotificationBell.vue'
 
 const route = useRoute()
 const router = useRouter()
+const queryClient = useQueryClient()
+const authStore = useAuthStore()
 
 // 입력창은 로컬 ref로 즉시 반응하고, URL 반영은 디바운스 후 router.push로 커밋한다.
 // 매 타이핑마다 push하면 뒤로가기 히스토리가 글자 수만큼 쌓이므로, 입력이 잠시 멈췄을 때만
@@ -51,6 +56,33 @@ const { data: menuPermissions } = useQuery({
 const { data: unreadChannelCount } = useQuery({
   queryKey: ['unread-channels', projectKey],
   queryFn: () => fetchUnreadChannelCount(projectKey.value),
+})
+
+// 메신저 배지가 실시간으로 갱신되도록, 메신저 화면에 들어가 있지 않아도 이 프로젝트의 모든 채널을
+// 미리 구독해둔다 (MessengerPage는 지금 열려있는 채널만 구독하므로 다른 화면에서는 갱신되지 않았음)
+const { data: channels } = useQuery({
+  queryKey: ['channels', projectKey],
+  queryFn: () => fetchChannelsByProjectKey(projectKey.value),
+  enabled: computed(() => !!projectKey.value),
+})
+
+const currentUserId = computed(() => authStore.currentUser?.id)
+let channelUnsubscribers: (() => void)[] = []
+
+function resubscribeChannels() {
+  for (const unsubscribe of channelUnsubscribers) unsubscribe()
+  channelUnsubscribers = (channels.value ?? []).map((channel) =>
+    subscribeChannelMessages(channel.id, (message) => {
+      if (message.authorId === currentUserId.value) return
+      queryClient.invalidateQueries({ queryKey: ['channels', projectKey.value] })
+      queryClient.invalidateQueries({ queryKey: ['unread-channels', projectKey.value] })
+    }),
+  )
+}
+
+watch(() => channels.value?.map((c) => c.id).join(','), resubscribeChannels, { immediate: true })
+onUnmounted(() => {
+  for (const unsubscribe of channelUnsubscribers) unsubscribe()
 })
 
 const isTasksTab = computed(

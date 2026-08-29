@@ -11,13 +11,18 @@ const props = defineProps<{
   mentionOptions: User[]
   typingUser?: User | null
 }>()
-const emit = defineEmits<{ submit: [{ body: string; mentionUserIds: string[] }] }>()
+const emit = defineEmits<{ submit: [{ body: string; mentionUserIds: string[] }]; typing: [] }>()
 
 const textareaRef = useTemplateRef<HTMLTextAreaElement>('textareaRef')
 const { draft, mentionActive, mentionCandidates, onInput, pickMention, consumeMentionIds, reset } = useMentionInput(
   () => props.mentionOptions,
   textareaRef,
 )
+
+function handleInput() {
+  onInput()
+  emit('typing')
+}
 
 const scrollRef = useTemplateRef<HTMLDivElement>('scrollRef')
 
@@ -41,21 +46,22 @@ function submit() {
   reset()
 }
 
-// 5분 이내 · 같은 작성자의 연속 메시지는 아바타·이름을 생략해 묶어 보여준다
-const FIVE_MIN = 5 * 60 * 1000
+// 정렬을 신뢰하지 않고 createdAt 기준으로 다시 정렬한다 — 목록 API가 정렬을 보장하지 않거나
+// STOMP로 실시간 도착한 메시지가 맨 뒤에 그냥 붙는 경우, 배열 순서가 시간 역순이 될 수 있다.
+function toTime(iso: string): number {
+  const t = new Date(iso).getTime()
+  return Number.isNaN(t) ? 0 : t
+}
+
+// 연속 메시지 묶기는 하지 않는다 — 메시지마다 작성자·시간을 항상 표시한다. 날짜 구분선만 남긴다.
 const displayItems = computed(() => {
-  const items: { message: Message; showHeader: boolean; dayLabel?: string }[] = []
-  let prev: Message | undefined
-  for (const message of props.messages) {
+  const sorted = [...props.messages].sort((a, b) => toTime(a.createdAt) - toTime(b.createdAt))
+  const items: { message: Message; dayLabel?: string }[] = []
+  let prevDayLabel: string | undefined
+  for (const message of sorted) {
     const dayLabel = formatDayDivider(message.createdAt)
-    const prevDayLabel = prev ? formatDayDivider(prev.createdAt) : undefined
-    const sameGroup =
-      !!prev &&
-      prev.authorId === message.authorId &&
-      dayLabel === prevDayLabel &&
-      new Date(message.createdAt).getTime() - new Date(prev.createdAt).getTime() < FIVE_MIN
-    items.push({ message, showHeader: !sameGroup, dayLabel: dayLabel !== prevDayLabel ? dayLabel : undefined })
-    prev = message
+    items.push({ message, dayLabel: dayLabel !== prevDayLabel ? dayLabel : undefined })
+    prevDayLabel = dayLabel
   }
   return items
 })
@@ -78,10 +84,9 @@ function bodyParts(message: Message) {
           {{ item.dayLabel }}
           <span class="h-px flex-1 bg-border" />
         </div>
-        <div class="flex gap-2.5 rounded-md px-1.5 py-0.5 hover:bg-[#f7f8fa]" :class="item.showHeader && 'mt-2'">
+        <div class="mt-2 flex gap-2.5 rounded-md px-1.5 py-0.5 hover:bg-[#f7f8fa]">
           <div class="w-7 shrink-0">
             <div
-              v-if="item.showHeader"
               class="grid size-7 place-items-center rounded-full text-[10px] font-semibold text-white"
               :style="{ background: usersById[item.message.authorId]?.avatarGradient }"
             >
@@ -89,7 +94,7 @@ function bodyParts(message: Message) {
             </div>
           </div>
           <div class="min-w-0 flex-1">
-            <div v-if="item.showHeader" class="flex items-baseline gap-2">
+            <div class="flex items-baseline gap-2">
               <span class="text-[13px] font-semibold text-foreground">{{ usersById[item.message.authorId]?.name ?? '알 수 없음' }}</span>
               <span class="text-[11px] text-subtle">{{ formatMessageTime(item.message.createdAt) }}</span>
             </div>
@@ -151,7 +156,7 @@ function bodyParts(message: Message) {
           rows="1"
           placeholder="메시지를 입력하세요. @이름으로 멘션할 수 있습니다."
           class="max-h-32 min-h-9 flex-1 resize-none border-none bg-transparent px-1 py-1.5 text-[13px] outline-none placeholder:text-subtle"
-          @input="onInput"
+          @input="handleInput"
           @keydown.enter.exact.prevent="submit"
         />
         <button

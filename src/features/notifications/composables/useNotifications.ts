@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { fetchNotifications } from '@/mock/api'
+import { fetchNotifications } from '@/api/notifications'
 import { useNotificationStore } from '@/stores/notifications'
 
 // 벨 드롭다운·알림 전체 페이지가 공유하는 조회/읽음 처리 로직.
