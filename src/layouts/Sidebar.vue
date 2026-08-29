@@ -19,7 +19,7 @@ import {
   moveProjectToFolder,
   toggleFavoriteProject,
 } from '@/api/projects'
-import { fetchMyTaskCount } from '@/mock/api'
+import { fetchMyTaskCount } from '@/api/tasks'
 import type { Project } from '@/mock/types'
 import { useAuthStore } from '@/stores/auth'
 import { confirm } from '@/lib/confirm'

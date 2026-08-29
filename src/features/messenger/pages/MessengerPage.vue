@@ -6,12 +6,12 @@ import {
   addAutoReply,
   fetchChannelsByProjectKey,
   fetchMessagesByChannelId,
-  fetchUsers,
   markChannelRead,
   sendMessage,
   simulateBackgroundActivity,
 } from '@/mock/api'
 import { fetchProjectByKey } from '@/api/projects'
+import { fetchProjectUsers } from '@/api/users'
 import { CURRENT_USER_ID } from '@/mock/users'
 import type { Channel, User } from '@/mock/types'
 import ChatPanel from '@/features/messenger/components/ChatPanel.vue'
@@ -31,7 +31,7 @@ const { data: project } = useQuery({
   queryFn: () => fetchProjectByKey(projectKey.value),
 })
 
-const { data: users } = useQuery({ queryKey: ['users'], queryFn: fetchUsers })
+const { data: users } = useQuery({ queryKey: ['project-users', projectKey], queryFn: () => fetchProjectUsers(projectKey.value) })
 const usersById = computed(() => Object.fromEntries((users.value ?? []).map((u) => [u.id, u])))
 
 const activeChannel = computed<Channel | undefined>(

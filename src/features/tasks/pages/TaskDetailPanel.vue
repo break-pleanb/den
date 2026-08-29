@@ -13,21 +13,20 @@ import {
   TriangleAlert,
   X,
 } from '@lucide/vue'
+import { addComment, fetchCommentsByTaskId } from '@/api/comments'
 import {
-  addComment,
   createSubtask,
-  fetchCommentsByTaskId,
+  fetchAllProjectTasks,
   fetchTagsByProjectKey,
   fetchTaskById,
-  fetchTasksByProjectKey,
-  fetchUsers,
   updateTask,
   updateTaskAssignees,
   updateTaskDependencies,
   updateTaskStatus,
   type TaskPatch,
-} from '@/mock/api'
+} from '@/api/tasks'
 import { fetchProjectByKey } from '@/api/projects'
+import { fetchProjectUsers } from '@/api/users'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,14 +77,16 @@ const { data: project } = useQuery({
   queryFn: () => fetchProjectByKey(projectKey.value),
 })
 
+// 부모/하위업무/의존성·순환 참조 검사에 쓸 프로젝트 전체 업무 — 이 관계형 조회에
+// 대응하는 전용 엔드포인트가 없어 목록 엔드포인트를 필터 없이(큰 size) 불러 재사용한다.
 const { data: projectTasks } = useQuery({
-  queryKey: ['tasks', projectKey],
-  queryFn: () => fetchTasksByProjectKey(projectKey.value),
+  queryKey: ['tasks', projectKey, 'all'],
+  queryFn: () => fetchAllProjectTasks(projectKey.value),
 })
 
 const { data: users } = useQuery({
-  queryKey: ['users'],
-  queryFn: fetchUsers,
+  queryKey: ['project-users', projectKey],
+  queryFn: () => fetchProjectUsers(projectKey.value),
 })
 
 const { data: tags } = useQuery({
@@ -126,7 +127,7 @@ const taskTags = computed(() =>
 )
 const dateOrderInvalid = computed(() => !!task.value && task.value.startDate > task.value.endDate)
 
-// ── 변경 (목업 데이터를 실제로 갱신) ──────────────────────────
+// ── 변경 (서버에 반영) ──────────────────────────────────────
 
 function invalidateTask() {
   queryClient.invalidateQueries({ queryKey: ['task', taskId.value] })
